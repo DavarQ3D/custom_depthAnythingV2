@@ -1,5 +1,6 @@
 import coremltools as ct
 import torch
+import torch.nn as nn
 from depth_anything_v2.dpt import DepthAnythingV2
 
 def loadTorchModel(modelPath, encoder):
@@ -13,27 +14,32 @@ def loadTorchModel(modelPath, encoder):
     depth_anything.load_state_dict(torch.load(modelPath, map_location='cpu'))
     return depth_anything    
 
+class DepthWrapper(nn.Module):
+    def __init__(self, base_model: nn.Module):
+        super().__init__()
+        self.base = base_model
+    def forward(self, x):
+        y = self.base(x)          # y.shape == [B, H, W]
+        return y.unsqueeze(1)     # new shape == [B, 1, H, W]
+
 if __name__ == '__main__':
 
     #==================== load torch model
     encoder = "vits"
     torch_model = loadTorchModel(f'checkpoints/depth_anything_v2_{encoder}.pth', encoder)
     torch_model.eval()
+    wrapped = DepthWrapper(torch_model)
 
-    #==================== handle input and trace the model
-    channels = 3
-    example_input = torch.rand(1, channels, 518, 518)
-    traced_model = torch.jit.trace(torch_model, example_input)
-    # shp = (1, channels, ct.RangeDim(lower_bound=518, upper_bound=1988), ct.RangeDim(lower_bound=518, upper_bound=1988)) 
-    # input_shape = ct.Shape(shape=shp)
-
-    #==================== convert the model
+    #==================== conversion
+    example_input = torch.rand(1, 3, 518, 518)
+    traced_model = torch.jit.trace(wrapped, example_input)
 
     mlProg = ct.convert(traced_model,
                         convert_to="mlprogram",
-                        compute_units=ct.ComputeUnit.ALL,          # CPU, GPU, Neural Engine
-                        compute_precision=ct.precision.FLOAT16,    # not only supported by CPU and GPU, but also by Neural Engine
-                        inputs=[ct.TensorType(name="image", shape=example_input.shape)],
-                        outputs=[ct.TensorType(name="depth")])
+                        compute_units=ct.ComputeUnit.ALL,           # CPU, GPU, Neural Engine
+                        compute_precision=ct.precision.FLOAT16,     # not only supported by CPU and GPU, but also by Neural Engine
+                        minimum_deployment_target=ct.target.iOS16,  # required for GRAYSCALE_FLOAT16
+                        inputs=[ct.ImageType(name="image", shape=example_input.shape, color_layout=ct.colorlayout.RGB)],
+                        outputs=[ct.ImageType(name="depth", color_layout=ct.colorlayout.GRAYSCALE_FLOAT16)])
     
     mlProg.save(f'checkpoints/custom_{encoder}_F16.mlpackage')
