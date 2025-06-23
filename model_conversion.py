@@ -24,8 +24,8 @@ if __name__ == '__main__':
     channels = 3
     example_input = torch.rand(1, channels, 518, 518)
     traced_model = torch.jit.trace(torch_model, example_input)
-    shp = (1, channels, ct.RangeDim(lower_bound=518, upper_bound=1988), ct.RangeDim(lower_bound=518, upper_bound=1988)) 
-    input_shape = ct.Shape(shape=shp)
+    # shp = (1, channels, ct.RangeDim(lower_bound=518, upper_bound=1988), ct.RangeDim(lower_bound=518, upper_bound=1988)) 
+    # input_shape = ct.Shape(shape=shp)
 
     #==================== convert the model
 
@@ -33,7 +33,7 @@ if __name__ == '__main__':
                         convert_to="mlprogram",
                         compute_units=ct.ComputeUnit.ALL,          # CPU, GPU, Neural Engine
                         compute_precision=ct.precision.FLOAT16,    # not only supported by CPU and GPU, but also by Neural Engine
-                        inputs=[ct.TensorType(name="image", shape=input_shape)],
+                        inputs=[ct.TensorType(name="image", shape=example_input.shape)],
                         outputs=[ct.TensorType(name="depth")])
     
     mlProg.save(f'checkpoints/custom_{encoder}_F16.mlpackage')
