@@ -1,0 +1,7 @@
+models/*
+checkpoints/*
+.vscode
+.vs
+__pycache__/
+
+
