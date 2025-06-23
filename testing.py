@@ -2,8 +2,18 @@ import coremltools as ct
 import cv2
 import numpy as np
 from PIL import Image
+from google.protobuf.json_format import MessageToJson
 
 model = ct.models.MLModel("./checkpoints/DepthAnythingV2SmallF16.mlpackage")
+
+writeSpecOnDisk = False
+
+if writeSpecOnDisk:
+    spec = model.get_spec()
+    json_str = MessageToJson(spec)
+    with open("model_spec.json", "w") as f:
+        f.write(json_str)
+    exit()
 
 bgr = cv2.imread("data/camera/camera_0.png", cv2.IMREAD_COLOR)
 rgb = cv2.cvtColor(bgr, cv2.COLOR_BGR2RGB)
