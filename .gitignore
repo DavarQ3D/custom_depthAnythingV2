@@ -2,6 +2,8 @@ models/*
 checkpoints/*
 .vscode
 .vs
+Data/*
+.DS_STORE
 __pycache__/
 
 
