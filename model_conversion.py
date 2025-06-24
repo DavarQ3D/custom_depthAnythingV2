@@ -36,7 +36,7 @@ class DepthWrapper(nn.Module):
 if __name__ == '__main__':
 
     #==================== load torch model
-    encoder = "vits"
+    encoder = "vitb"
     torch_model = loadTorchModel(f'checkpoints/depth_anything_v2_{encoder}.pth', encoder)
     torch_model.eval()
     wrapped = DepthWrapper(torch_model)

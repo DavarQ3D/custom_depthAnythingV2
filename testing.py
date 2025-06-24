@@ -4,8 +4,8 @@ import numpy as np
 from PIL import Image
 from google.protobuf.json_format import MessageToJson
 
-customModel = False
-model = ct.models.MLModel("./checkpoints/custom_vits_F16.mlpackage") if customModel else ct.models.MLModel("./checkpoints/DepthAnythingV2SmallF16.mlpackage")
+customModel = True
+model = ct.models.MLModel("./checkpoints/custom_vitb_F16.mlpackage") if customModel else ct.models.MLModel("./checkpoints/DepthAnythingV2SmallF16.mlpackage")
 
 writeSpecOnDisk = False
 if writeSpecOnDisk:
