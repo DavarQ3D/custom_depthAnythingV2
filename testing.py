@@ -18,7 +18,7 @@ if writeSpecOnDisk:
 bgr = cv2.imread("data/camera/camera_0.png", cv2.IMREAD_COLOR)
 rgb = cv2.cvtColor(bgr, cv2.COLOR_BGR2RGB)
 
-sz = (518, 518) if customModel else (518, 392)
+sz = (686, 518) if customModel else (518, 392)
 rgb_resized = cv2.resize(rgb, sz, interpolation=cv2.INTER_AREA)
 
 pil_input = Image.fromarray(rgb_resized)
