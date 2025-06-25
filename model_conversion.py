@@ -15,12 +15,6 @@ def loadTorchModel(modelPath, encoder):
     return depth_anything    
 
 class DepthWrapper(nn.Module):
-    """
-    •   Normalises input exactly like the original inference script:
-          x = (x/255 - mean) / std
-    •   Adds a singleton channel dimension so Core ML can treat the output
-        as a 1-channel image (B,1,H,W).
-    """
     def __init__(self, base_model: nn.Module):
         super().__init__()
         self.base = base_model
