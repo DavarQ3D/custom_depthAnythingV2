@@ -60,7 +60,6 @@ def inferFromTorch(model, image, input_size):
     depth = model.infer_image(image, input_size)
     depth = (depth - depth.min()) / (depth.max() - depth.min()) * 255.0
     depth = depth.astype(np.uint8)
-    # depth = np.repeat(depth[..., np.newaxis], 3, axis=-1)
     return depth
 
 #=============================================================================================================
