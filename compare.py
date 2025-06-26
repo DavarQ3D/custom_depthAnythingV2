@@ -11,6 +11,7 @@ from depth_anything_v2.util import transform
 #=============================================================================================================
 
 def loadTorchModel(modelPath, encoder):
+    DEVICE = 'cuda' if torch.cuda.is_available() else 'mps' if torch.backends.mps.is_available() else 'cpu'
     model_configs = {
         'vits': {'encoder': 'vits', 'features': 64, 'out_channels': [48, 96, 192, 384]},
         'vitb': {'encoder': 'vitb', 'features': 128, 'out_channels': [96, 192, 384, 768]},
@@ -19,6 +20,7 @@ def loadTorchModel(modelPath, encoder):
     }    
     depth_anything = DepthAnythingV2(**model_configs[encoder])
     depth_anything.load_state_dict(torch.load(modelPath, map_location='cpu'))
+    depth_anything = depth_anything.to(DEVICE).eval()
     return depth_anything    
 
 #=============================================================================================================
@@ -68,7 +70,6 @@ if __name__ == '__main__':
     #--------------------- load the torch model
     encoder = "vits"
     torch_model = loadTorchModel(f'checkpoints/depth_anything_v2_{encoder}.pth', encoder)
-    torch_model.eval()
 
     #------------------ load the Core ML model
     customModel = True
@@ -89,9 +90,10 @@ if __name__ == '__main__':
     #------------------ configs
     fixedRow = 518                                # core ML program requires fixed input size
     fixedCol = 686 if customModel else 518
-    img_path = "./data/camera"
+    img_path = "./data/camera/"
     outdir   = "./data/outputs"
-    filenames = glob.glob(os.path.join(img_path, '**/*'), recursive=True)
+    numFiles = len(os.listdir(img_path))
+    filenames = [os.path.join(img_path, f"camera_{i}.png") for i in range(numFiles)]    
     os.makedirs(outdir, exist_ok=True)
 
     #------------------ inference loop
@@ -108,8 +110,7 @@ if __name__ == '__main__':
 
         cropped = center_crop_or_pad(resized, fixedRow, fixedCol)  
 
-        # depth_torch = inferFromTorch(torch_model, cropped, fixedRow)
-
+        depth_torch = inferFromTorch(torch_model, cropped, fixedRow)
 
 
 
