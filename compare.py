@@ -1,0 +1,135 @@
+import coremltools as ct
+import cv2
+import numpy as np
+import torch
+from PIL import Image
+from depth_anything_v2.dpt import DepthAnythingV2
+import glob
+import os
+from depth_anything_v2.util import transform
+
+#=============================================================================================================
+
+def loadTorchModel(modelPath, encoder):
+    model_configs = {
+        'vits': {'encoder': 'vits', 'features': 64, 'out_channels': [48, 96, 192, 384]},
+        'vitb': {'encoder': 'vitb', 'features': 128, 'out_channels': [96, 192, 384, 768]},
+        'vitl': {'encoder': 'vitl', 'features': 256, 'out_channels': [256, 512, 1024, 1024]},
+        'vitg': {'encoder': 'vitg', 'features': 384, 'out_channels': [1536, 1536, 1536, 1536]}
+    }    
+    depth_anything = DepthAnythingV2(**model_configs[encoder])
+    depth_anything.load_state_dict(torch.load(modelPath, map_location='cpu'))
+    return depth_anything    
+
+#=============================================================================================================
+
+def center_crop_or_pad(img: np.ndarray, desiredRow: int, desiredCol: int) -> np.ndarray:
+
+    h, w = img.shape[:2]
+
+    # centre crop if the dimension is too large 
+    if h > desiredRow:
+        top = (h - desiredRow) // 2
+        img = img[top : top + desiredRow, :, :]
+        h = desiredRow
+    if w > desiredCol:
+        left = (w - desiredCol) // 2
+        img = img[:, left : left + desiredCol, :]
+        w = desiredCol
+
+    # symmetric padding if the dimension is too small 
+    pad_top    = (desiredRow - h) // 2
+    pad_bottom = desiredRow - h - pad_top
+    pad_left   = (desiredCol - w) // 2
+    pad_right  = desiredCol - w - pad_left
+
+    if any(p > 0 for p in (pad_top, pad_bottom, pad_left, pad_right)):
+        img = cv2.copyMakeBorder(
+            img,
+            pad_top, pad_bottom, pad_left, pad_right,
+            borderType=cv2.BORDER_REFLECT_101,   # or BORDER_CONSTANT, etc.
+        )
+
+    return img
+
+#=============================================================================================================
+
+def inferFromTorch(model, image, input_size):
+    depth = model.infer_image(image, input_size)
+    depth = (depth - depth.min()) / (depth.max() - depth.min()) * 255.0
+    depth = depth.astype(np.uint8)
+    # depth = np.repeat(depth[..., np.newaxis], 3, axis=-1)
+    return depth
+
+#=============================================================================================================
+
+if __name__ == '__main__':
+
+    #--------------------- load the torch model
+    encoder = "vits"
+    torch_model = loadTorchModel(f'checkpoints/depth_anything_v2_{encoder}.pth', encoder)
+    torch_model.eval()
+
+    #------------------ load the Core ML model
+    customModel = True
+    model = ct.models.MLModel("./checkpoints/custom_vits_F16.mlpackage") if customModel else ct.models.MLModel("./checkpoints/DepthAnythingV2SmallF16.mlpackage")
+
+    #------------------ resizer
+    lower_dim = 518
+    resizer = transform.Resize(
+        width=lower_dim,                      
+        height=lower_dim,                     
+        resize_target=False,                  
+        keep_aspect_ratio=True,
+        ensure_multiple_of=14,
+        resize_method="lower_bound",      
+        image_interpolation_method=cv2.INTER_CUBIC,
+    )
+    
+    #------------------ configs
+    fixedRow = 518                                # core ML program requires fixed input size
+    fixedCol = 686 if customModel else 518
+    img_path = "./data/camera"
+    outdir   = "./data/outputs"
+    filenames = glob.glob(os.path.join(img_path, '**/*'), recursive=True)
+    os.makedirs(outdir, exist_ok=True)
+
+    #------------------ inference loop
+    #------------------------------------------------------------------
+    
+    for k, filename in enumerate(filenames):
+        print(f'Progress {k+1}/{len(filenames)}: {filename}')
+
+        raw_image = cv2.imread(filename)
+
+        sample = {"image": raw_image}
+        sample = resizer(sample)               
+        resized = sample["image"]                
+
+        cropped = center_crop_or_pad(resized, fixedRow, fixedCol)  
+
+        # depth_torch = inferFromTorch(torch_model, cropped, fixedRow)
+
+
+
+
+    # #------------------ load the Core ML model
+    
+    # imagePath = "data/camera"
+
+    # bgr = cv2.imread("data/camera/camera_0.png", cv2.IMREAD_COLOR)
+    # rgb = cv2.cvtColor(bgr, cv2.COLOR_BGR2RGB)
+
+    # sz = (686, 518) if customModel else (518, 392)
+    # rgb_resized = cv2.resize(rgb, sz, interpolation=cv2.INTER_AREA)
+
+    # pil_input = Image.fromarray(rgb_resized)
+    # pred = model.predict({"image": pil_input})
+
+    # depth = np.array(pred["depth"], dtype=np.float32)
+    # norm = cv2.normalize(depth, None, 0, 255, cv2.NORM_MINMAX)
+    # cv2.imshow("Depth", norm.astype(np.uint8))
+    # key = cv2.waitKey(0)
+    # if key == 27:  
+    #     cv2.destroyAllWindows()
+    #     exit()
