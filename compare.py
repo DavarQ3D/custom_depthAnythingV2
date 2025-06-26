@@ -4,7 +4,6 @@ import numpy as np
 import torch
 from PIL import Image
 from depth_anything_v2.dpt import DepthAnythingV2
-import glob
 import os
 from depth_anything_v2.util import transform
 
