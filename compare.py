@@ -63,7 +63,7 @@ def denormalize(image):
 #=============================================================================================================
 
 def inferFromTorch(model, image, input_size):
-    depth = model.infer_image(image, input_size)
+    depth = model.infer_image(image, input_size, doResize=False)
     return denormalize(depth)
 
 #=============================================================================================================
