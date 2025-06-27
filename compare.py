@@ -132,7 +132,7 @@ if __name__ == '__main__':
     mlProgram = ct.models.MLModel("./checkpoints/custom_vits_F16.mlpackage") if customModel else ct.models.MLModel("./checkpoints/DepthAnythingV2SmallF16.mlpackage")
 
     #------------------ resizer
-    lower_dim = 518
+    lower_dim = 518 if customModel else 392
     resizer = transform.Resize(
         width=lower_dim,                      
         height=lower_dim,                     
@@ -144,7 +144,7 @@ if __name__ == '__main__':
     )
     
     #------------------ configs
-    fixedRow = 518                                # core ML program requires fixed input size
+    fixedRow = lower_dim                                # core ML program requires fixed input size
     fixedCol = 686 if customModel else 518
     img_path = "./data/camera/"
     outdir   = "./data/outputs"
