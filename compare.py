@@ -55,16 +55,16 @@ def center_crop_or_pad(img: np.ndarray, desiredRow: int, desiredCol: int) -> np.
 
 #=============================================================================================================
 
-def denormalize(image):
-    image = cv2.normalize(image, None, 0, 255, cv2.NORM_MINMAX)
-    image = image.astype(np.uint8)
-    return image
+def to_vis_uint8(depth, vmin=None, vmax=None):
+    if vmin is None: vmin = depth.min()
+    if vmax is None: vmax = depth.max()
+    depth = np.clip((depth - vmin) / (vmax - vmin + 1e-8), 0, 1)
+    return (depth * 255).astype(np.uint8)
 
 #=============================================================================================================
 
 def inferFromTorch(model, image, input_size):
-    depth = model.infer_image(image, input_size, doResize=False)
-    return denormalize(depth)
+    return model.infer_image(image, input_size, doResize=False)
 
 #=============================================================================================================
 
@@ -73,26 +73,53 @@ def inferFromCoreml(mlProg, bgr):
     pil_input = Image.fromarray(rgb)
     pred = mlProg.predict({"image": pil_input})
     depth = np.array(pred["depth"], dtype=np.float32)
-    return denormalize(depth)
+    return depth
 
 #=============================================================================================================
 
-def PrepVisualOutput(res1: np.ndarray, res2: np.ndarray, mode: str = "color") -> np.ndarray:
+def fp(value, precision=4):
+    return f"{value:.{precision}f}" 
+
+def analyzeAndPrepVis(ref, pred, mode = "color"):
 
     assert mode in ("color", "grayscale"), "mode must be 'color' or 'grayscale'"
 
-    diff = np.abs(res1.astype(np.int16) - res2.astype(np.int16)).astype(np.uint8)
-    diff = cv2.normalize(diff, None, 0, 255, cv2.NORM_MINMAX)
+    err = np.abs(ref - pred)
+
+    print("ref ---> min:", fp(ref.min()), ", max:", fp(ref.max()))
+    print("pred --> min:", fp(pred.min()), ", max:", fp(pred.max()), '\n')
+    print("err ---> min:", fp(err.min()), ", max:", fp(err.max()), "--> RMSE:", fp(np.sqrt((err**2).mean()), 6))
+
+    vmin = min(ref.min(), pred.min())
+    vmax = max(ref.max(), pred.max())
+
+    ref = to_vis_uint8(ref, vmin, vmax)
+    pred = to_vis_uint8(pred, vmin, vmax)
+    
+    # err = to_vis_uint8(err, 0, err.max())
+    err = to_vis_uint8(err, 0, 1)  
 
     if mode == "grayscale":
-        return cv2.hconcat([res1, res2, diff])
+        return cv2.hconcat([ref, pred, err])
 
-    res1 = cv2.cvtColor(res1, cv2.COLOR_GRAY2BGR)
-    res2 = cv2.cvtColor(res2, cv2.COLOR_GRAY2BGR)
-    diff = cv2.cvtColor(diff, cv2.COLOR_GRAY2BGR)
-    diff = cv2.applyColorMap(diff, cv2.COLORMAP_JET)
+    ref = cv2.cvtColor(ref, cv2.COLOR_GRAY2BGR)
+    pred = cv2.cvtColor(pred, cv2.COLOR_GRAY2BGR)
+    err = cv2.cvtColor(err, cv2.COLOR_GRAY2BGR)
+    err = cv2.applyColorMap(err, cv2.COLORMAP_JET)
 
-    return cv2.hconcat([res1, res2, diff])
+    return cv2.hconcat([ref, pred, err])
+
+
+#=============================================================================================================
+
+def displayImage(title, image):
+    cv2.imshow(title, image)
+    key = cv2.waitKey(0)
+    if key == 27:  
+        cv2.destroyAllWindows()
+        exit()
+
+#=============================================================================================================
 
 if __name__ == '__main__':
 
@@ -129,7 +156,10 @@ if __name__ == '__main__':
     #------------------------------------------------------------------
     
     for k, filename in enumerate(filenames):
-        print(f'Progress {k+1}/{len(filenames)}: {filename}')
+
+        print('\n'"=========================================================")
+        print(f'========= sample --> {filename} =========')
+        print("=========================================================", '\n')
 
         raw_image = cv2.imread(filename)
 
@@ -141,10 +171,5 @@ if __name__ == '__main__':
         depth_torch = inferFromTorch(torch_model, cropped, fixedRow)
         depth_coreml = inferFromCoreml(mlProgram, cropped)
     
-        visualRes = PrepVisualOutput(depth_torch, depth_coreml, mode="grayscale")
-        cv2.imshow("raw_image", raw_image)
-        cv2.imshow("visualRes", visualRes)
-        key = cv2.waitKey(0)
-        if key == 27:
-            cv2.destroyAllWindows()
-            break
+        visualRes = analyzeAndPrepVis(depth_torch, depth_coreml, mode="color")
+        displayImage("visualRes", visualRes)
