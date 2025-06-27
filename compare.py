@@ -77,6 +77,23 @@ def inferFromCoreml(mlProg, bgr):
 
 #=============================================================================================================
 
+def PrepVisualOutput(res1: np.ndarray, res2: np.ndarray, mode: str = "color") -> np.ndarray:
+
+    assert mode in ("color", "grayscale"), "mode must be 'color' or 'grayscale'"
+
+    diff = np.abs(res1.astype(np.int16) - res2.astype(np.int16)).astype(np.uint8)
+    diff = cv2.normalize(diff, None, 0, 255, cv2.NORM_MINMAX)
+
+    if mode == "grayscale":
+        return cv2.hconcat([res1, res2, diff])
+
+    res1 = cv2.cvtColor(res1, cv2.COLOR_GRAY2BGR)
+    res2 = cv2.cvtColor(res2, cv2.COLOR_GRAY2BGR)
+    diff = cv2.cvtColor(diff, cv2.COLOR_GRAY2BGR)
+    diff = cv2.applyColorMap(diff, cv2.COLORMAP_JET)
+
+    return cv2.hconcat([res1, res2, diff])
+
 if __name__ == '__main__':
 
     #--------------------- load the torch model
@@ -123,3 +140,11 @@ if __name__ == '__main__':
         cropped = center_crop_or_pad(resized, fixedRow, fixedCol)  
         depth_torch = inferFromTorch(torch_model, cropped, fixedRow)
         depth_coreml = inferFromCoreml(mlProgram, cropped)
+    
+        visualRes = PrepVisualOutput(depth_torch, depth_coreml, mode="grayscale")
+        cv2.imshow("raw_image", raw_image)
+        cv2.imshow("visualRes", visualRes)
+        key = cv2.waitKey(0)
+        if key == 27:
+            cv2.destroyAllWindows()
+            break
