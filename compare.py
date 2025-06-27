@@ -55,14 +55,6 @@ def center_crop_or_pad(img: np.ndarray, desiredRow: int, desiredCol: int) -> np.
 
 #=============================================================================================================
 
-def to_vis_uint8(depth, vmin=None, vmax=None):
-    if vmin is None: vmin = depth.min()
-    if vmax is None: vmax = depth.max()
-    depth = np.clip((depth - vmin) / (vmax - vmin + 1e-8), 0, 1)
-    return (depth * 255).astype(np.uint8)
-
-#=============================================================================================================
-
 def inferFromTorch(model, image, input_size):
     return model.infer_image(image, input_size, doResize=False)
 
@@ -80,24 +72,26 @@ def inferFromCoreml(mlProg, bgr):
 def fp(value, precision=4):
     return f"{value:.{precision}f}" 
 
+def normalize(image):
+    return (image - image.min()) / (image.max() - image.min() + 1e-8)
+
+def denormalize(image):
+    return (image * 255).astype(np.uint8)
+
 def analyzeAndPrepVis(ref, pred, mode = "color"):
 
-    assert mode in ("color", "grayscale"), "mode must be 'color' or 'grayscale'"
-
-    err = np.abs(ref - pred)
-
+    assert mode in ("color", "grayscale")
     print("ref ---> min:", fp(ref.min()), ", max:", fp(ref.max()))
     print("pred --> min:", fp(pred.min()), ", max:", fp(pred.max()), '\n')
+
+    ref = normalize(ref)
+    pred = normalize(pred)
+    err = np.abs(ref - pred)
     print("err ---> min:", fp(err.min()), ", max:", fp(err.max()), "--> RMSE:", fp(np.sqrt((err**2).mean()), 6))
 
-    vmin = min(ref.min(), pred.min())
-    vmax = max(ref.max(), pred.max())
-
-    ref = to_vis_uint8(ref, vmin, vmax)
-    pred = to_vis_uint8(pred, vmin, vmax)
-    
-    # err = to_vis_uint8(err, 0, err.max())
-    err = to_vis_uint8(err, 0, 1)  
+    ref = denormalize(ref)
+    pred = denormalize(pred)    
+    err = denormalize(err)
 
     if mode == "grayscale":
         return cv2.hconcat([ref, pred, err])
