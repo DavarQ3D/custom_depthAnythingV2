@@ -117,13 +117,10 @@ def displayImage(title, image):
 
 if __name__ == '__main__':
 
-    #--------------------- load the torch model
-    encoder = "vits"
-    torch_model = loadTorchModel(f'checkpoints/depth_anything_v2_{encoder}.pth', encoder)
-
     #------------------ load the Core ML model
     customModel = True
-    mlProgram = ct.models.MLModel("./checkpoints/custom_vits_F16.mlpackage") if customModel else ct.models.MLModel("./checkpoints/DepthAnythingV2SmallF16.mlpackage")
+    # mlProgram = ct.models.MLModel("./checkpoints/custom_vits_F16.mlpackage") if customModel else ct.models.MLModel("./checkpoints/DepthAnythingV2SmallF16.mlpackage")
+    mlProgram = None
 
     #------------------ resizer
     lower_dim = 518 if customModel else 392
@@ -140,11 +137,11 @@ if __name__ == '__main__':
     #------------------ configs
     fixedRow = lower_dim                                # core ML program requires fixed input size
     fixedCol = 686 if customModel else 518
-    img_path = "./data/camera/"
+    img_path = "./data/iphone_pro/"
     outdir   = "./data/outputs"
-    numFiles = len(os.listdir(img_path))
-    filenames = [os.path.join(img_path, f"camera_{i}.png") for i in range(numFiles)]    
     os.makedirs(outdir, exist_ok=True)
+    filenames = os.listdir(img_path)
+    numFiles = len(filenames) 
 
     #------------------ inference loop
     #------------------------------------------------------------------
@@ -155,7 +152,10 @@ if __name__ == '__main__':
         print(f'========= sample --> {filename} =========')
         print("=========================================================", '\n')
 
-        raw_image = cv2.imread(filename)
+        path = img_path + filename
+        raw_image = cv2.imread(path)
+        displayImage("testing", raw_image)
+        exit()
 
         sample = {"image": raw_image}
         sample = resizer(sample)               
