@@ -116,6 +116,7 @@ def displayImage(title, image):
 
 #=============================================================================================================
 
+
 if __name__ == '__main__':
 
     #--------------------- load the torch model
@@ -123,11 +124,12 @@ if __name__ == '__main__':
     torch_model = loadTorchModel(f'checkpoints/depth_anything_v2_{encoder}.pth', encoder)
 
     #------------------ load the Core ML model
-    customModel = True
-    mlProgram = ct.models.MLModel("./checkpoints/custom_vits_F16.mlpackage") if customModel else ct.models.MLModel("./checkpoints/DepthAnythingV2SmallF16.mlpackage")
+    tallInput = True
+    # mlProgram = ct.models.MLModel("./checkpoints/custom_vits_F16.mlpackage") 
+    mlProgram = None
 
     #------------------ resizer
-    lower_dim = 518 if customModel else 392
+    lower_dim = 518
     resizer = transform.Resize(
         width=lower_dim,                      
         height=lower_dim,                     
@@ -137,34 +139,66 @@ if __name__ == '__main__':
         resize_method="lower_bound",      
         image_interpolation_method=cv2.INTER_CUBIC,
     )
+
+    def customResize(image):
+        sample = {"image": image}
+        sample = resizer(sample)               
+        return sample["image"]   
     
     #------------------ configs
-    fixedRow = lower_dim                                # core ML program requires fixed input size
-    fixedCol = 686 if customModel else 518
-    img_path = "./data/camera/"
+    fixedRow = lower_dim                                
+    fixedCol = 686 
+    img_path = "./data/iphone_pro/"
     outdir   = "./data/outputs"
-    numFiles = len(os.listdir(img_path))
-    filenames = [os.path.join(img_path, f"camera_{i}.png") for i in range(numFiles)]    
     os.makedirs(outdir, exist_ok=True)
+    numFiles = len(os.listdir(img_path)) 
 
     #------------------ inference loop
     #------------------------------------------------------------------
-    
-    for k, filename in enumerate(filenames):
+
+    for idx in range(numFiles):
 
         print('\n'"=========================================================")
-        print(f'========= sample --> {filename} =========')
+        print(f'========= sample --> {idx} =========')
         print("=========================================================", '\n')
 
-        raw_image = cv2.imread(filename)
+        rgbPath = img_path + f"RGB_{idx + 1:02d}.JPG"
+        raw_image = cv2.imread(rgbPath)
 
-        sample = {"image": raw_image}
-        sample = resizer(sample)               
-        resized = sample["image"]                
+        resizedTorch = customResize(raw_image)
+        croppedTorch = center_crop_or_pad(resizedTorch, fixedRow, fixedCol)
+        depthTorch = inferFromTorch(torch_model, croppedTorch, fixedRow)
+        depthTorch = normalize(depthTorch) 
 
-        cropped = center_crop_or_pad(resized, fixedRow, fixedCol)  
-        depth_torch = inferFromTorch(torch_model, cropped, fixedRow)
-        depth_coreml = inferFromCoreml(mlProgram, cropped)
+        cv2.imshow("raw_image", raw_image)
+        cv2.imshow("resizedTorch", resizedTorch)
+        cv2.imshow("croppedTorch", croppedTorch)
+        cv2.imshow("depthTorch", depthTorch)
+        key = cv2.waitKey(0)
+        if key == 27:
+            cv2.destroyAllWindows()
+            exit()
+
+        # inpTroch = preprocess(raw_image) 
+        # depth_torch = inferFromTorch(torch_model, inpTroch, fixedRow)
+
+        # rotated = cv2.rotate(raw_image, cv2.ROTATE_90_COUNTERCLOCKWISE)
+        # inpCorml = preprocess(rotated)
+
+        # sample = {"image": raw_image}
+        # sample = resizer(sample)               
+        # resized = sample["image"]                
+
+        # cropped = center_crop_or_pad(resized, fixedRow, fixedCol)  
+        # depth_coreml = inferFromCoreml(mlProgram, cropped)
+
+
+        # rotated = cv2.rotate(img, cv2.ROTATE_90_COUNTERCLOCKWISE) 
+        # rotated = customResize(rotated) 
+        # rotated = center_crop_or_pad(rotated, fixedRow, fixedCol)
+
+        # depth_torch = inferFromTorch(torch_model, cropped, fixedRow)
+        # # depth_coreml = inferFromCoreml(mlProgram, cropped)
     
-        visualRes = analyzeAndPrepVis(depth_torch, depth_coreml, mode="color")
-        displayImage("visualRes", visualRes)
+        # # visualRes = analyzeAndPrepVis(depth_torch, depth_coreml, mode="color")
+        # # displayImage("visualRes", visualRes)
