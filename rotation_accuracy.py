@@ -124,9 +124,7 @@ if __name__ == '__main__':
     torch_model = loadTorchModel(f'checkpoints/depth_anything_v2_{encoder}.pth', encoder)
 
     #------------------ load the Core ML model
-    tallInput = True
-    # mlProgram = ct.models.MLModel("./checkpoints/custom_vits_F16.mlpackage") 
-    mlProgram = None
+    mlProgram = ct.models.MLModel("./checkpoints/custom_vits_F16.mlpackage") 
 
     #------------------ resizer
     lower_dim = 518
@@ -148,7 +146,7 @@ if __name__ == '__main__':
     #------------------ configs
     fixedRow = lower_dim                                
     fixedCol = 686 
-    img_path = "./data/iphone_pro/"
+    img_path = "./data/tall_rgb/"
     outdir   = "./data/outputs"
     os.makedirs(outdir, exist_ok=True)
     numFiles = len(os.listdir(img_path)) 
@@ -163,42 +161,16 @@ if __name__ == '__main__':
         print("=========================================================", '\n')
 
         rgbPath = img_path + f"RGB_{idx + 1:02d}.JPG"
-        raw_image = cv2.imread(rgbPath)
+        rawImage = cv2.imread(rgbPath)
 
-        resizedTorch = customResize(raw_image)
-        croppedTorch = center_crop_or_pad(resizedTorch, fixedRow, fixedCol)
-        depthTorch = inferFromTorch(torch_model, croppedTorch, fixedRow)
-        depthTorch = normalize(depthTorch) 
+        resized = customResize(rawImage)
+        cropped = center_crop_or_pad(resized, fixedCol, fixedRow)
 
-        cv2.imshow("raw_image", raw_image)
-        cv2.imshow("resizedTorch", resizedTorch)
-        cv2.imshow("croppedTorch", croppedTorch)
-        cv2.imshow("depthTorch", depthTorch)
-        key = cv2.waitKey(0)
-        if key == 27:
-            cv2.destroyAllWindows()
-            exit()
+        depthTorch = inferFromTorch(torch_model, cropped, fixedRow)
 
-        # inpTroch = preprocess(raw_image) 
-        # depth_torch = inferFromTorch(torch_model, inpTroch, fixedRow)
-
-        # rotated = cv2.rotate(raw_image, cv2.ROTATE_90_COUNTERCLOCKWISE)
-        # inpCorml = preprocess(rotated)
-
-        # sample = {"image": raw_image}
-        # sample = resizer(sample)               
-        # resized = sample["image"]                
-
-        # cropped = center_crop_or_pad(resized, fixedRow, fixedCol)  
-        # depth_coreml = inferFromCoreml(mlProgram, cropped)
-
-
-        # rotated = cv2.rotate(img, cv2.ROTATE_90_COUNTERCLOCKWISE) 
-        # rotated = customResize(rotated) 
-        # rotated = center_crop_or_pad(rotated, fixedRow, fixedCol)
-
-        # depth_torch = inferFromTorch(torch_model, cropped, fixedRow)
-        # # depth_coreml = inferFromCoreml(mlProgram, cropped)
+        rotated = cv2.rotate(cropped, cv2.ROTATE_90_COUNTERCLOCKWISE)
+        depthCoreml = inferFromCoreml(mlProgram, rotated)
+        depthCoreml = cv2.rotate(depthCoreml, cv2.ROTATE_90_CLOCKWISE)
     
-        # # visualRes = analyzeAndPrepVis(depth_torch, depth_coreml, mode="color")
-        # # displayImage("visualRes", visualRes)
+        visualRes = analyzeAndPrepVis(depthTorch, depthCoreml, mode="color")
+        displayImage("visualRes", visualRes)
