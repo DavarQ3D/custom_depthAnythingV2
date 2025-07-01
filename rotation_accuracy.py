@@ -124,7 +124,9 @@ if __name__ == '__main__':
     torch_model = loadTorchModel(f'checkpoints/depth_anything_v2_{encoder}.pth', encoder)
 
     #------------------ load the Core ML model
-    mlProgram = ct.models.MLModel("./checkpoints/custom_vits_F16.mlpackage") 
+    tallModel = True
+    modelType = "_tall" if tallModel else ""
+    mlProgram = ct.models.MLModel(f"./checkpoints/custom_vits_F16{modelType}.mlpackage") 
 
     #------------------ resizer
     lower_dim = 518
@@ -144,8 +146,6 @@ if __name__ == '__main__':
         return sample["image"]   
     
     #------------------ configs
-    fixedRow = lower_dim                                
-    fixedCol = 686 
     img_path = "./data/tall_rgb/"
     outdir   = "./data/outputs"
     os.makedirs(outdir, exist_ok=True)
@@ -164,13 +164,18 @@ if __name__ == '__main__':
         rawImage = cv2.imread(rgbPath)
 
         resized = customResize(rawImage)
-        cropped = center_crop_or_pad(resized, fixedCol, fixedRow)
+        row = resized.shape[0]
+        col = resized.shape[1]
 
-        depthTorch = inferFromTorch(torch_model, cropped, fixedRow)
+        cropDesRow = 686 if row >= col else 518
+        cropDesCol = 518 if row >= col else 686
+        cropped = center_crop_or_pad(resized, cropDesRow, cropDesCol)
 
-        rotated = cv2.rotate(cropped, cv2.ROTATE_90_COUNTERCLOCKWISE)
-        depthCoreml = inferFromCoreml(mlProgram, rotated)
-        depthCoreml = cv2.rotate(depthCoreml, cv2.ROTATE_90_CLOCKWISE)
+        depthTorch = inferFromTorch(torch_model, cropped, lower_dim)
+        
+        inp = cropped if tallModel else cv2.rotate(cropped, cv2.ROTATE_90_COUNTERCLOCKWISE)
+        depthCoreml = inferFromCoreml(mlProgram, inp)
+        depthCoreml = depthCoreml if tallModel else cv2.rotate(depthCoreml, cv2.ROTATE_90_CLOCKWISE)
     
         visualRes = analyzeAndPrepVis(depthTorch, depthCoreml, mode="color")
         displayImage("visualRes", visualRes)
