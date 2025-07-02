@@ -79,6 +79,7 @@ if __name__ == '__main__':
     torch_model = loadTorchModel(f'checkpoints/depth_anything_v2_{encoder}.pth', encoder)
     torch_model.eval()
     wrapped = DepthWrapper(torch_model)
+    wrapped.eval()
 
     #==================== conversion
     example_input = torch.rand(1, 3, 518, 686)
