@@ -87,8 +87,10 @@ def analyzeAndPrepVis(ref, pred, mode = "color"):
 
     ref = normalize(ref)
     pred = normalize(pred)
+    
     err = np.abs(ref - pred)
     print("err ---> min:", fp(err.min()), ", max:", fp(err.max()), "--> RMSE:", fp(np.sqrt((err**2).mean()), 6))
+    # err = normalize(err)
 
     ref = denormalize(ref)
     pred = denormalize(pred)    
@@ -140,7 +142,7 @@ if __name__ == '__main__':
     
     #------------------ configs
     fixedRow = lower_dim                                # core ML program requires fixed input size
-    fixedCol = 686 if customModel else 518
+    fixedCol = 518 if customModel else 518
     img_path = "./data/camera/"
     outdir   = "./data/outputs"
     numFiles = len(os.listdir(img_path))

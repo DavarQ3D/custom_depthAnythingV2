@@ -82,7 +82,7 @@ if __name__ == '__main__':
     wrapped.eval()
 
     #==================== conversion
-    example_input = torch.rand(1, 3, 518, 686)
+    example_input = torch.rand(1, 3, 518, 518)
     traced_model = torch.jit.trace(wrapped, example_input)
 
     mlProg = ct.convert(traced_model,
