@@ -90,7 +90,7 @@ def analyzeAndPrepVis(ref, pred, mode = "color"):
     
     err = np.abs(ref - pred)
     print("err ---> min:", fp(err.min()), ", max:", fp(err.max()), "--> RMSE:", fp(np.sqrt((err**2).mean()), 6))
-    # err = normalize(err)
+    err = normalize(err)
 
     ref = denormalize(ref)
     pred = denormalize(pred)    
@@ -126,10 +126,12 @@ if __name__ == '__main__':
 
     #------------------ load the Core ML model
     customModel = True
-    mlProgram = ct.models.CompiledMLModel("./checkpoints/custom_vits_F16_518_518.mlmodelc") if customModel else ct.models.MLModel("./checkpoints/DepthAnythingV2SmallF16.mlpackage")
+    lower_dim = 518 if customModel else 392
+    fixedRow = lower_dim                                # core ML program requires fixed input size
+    fixedCol = 518 if customModel else 518
+    mlProgram = ct.models.CompiledMLModel(f"./checkpoints/custom_vits_F16_{fixedRow}_{fixedCol}.mlmodelc") if customModel else ct.models.MLModel("./checkpoints/DepthAnythingV2SmallF16.mlpackage")
 
     #------------------ resizer
-    lower_dim = 518 if customModel else 392
     resizer = transform.Resize(
         width=lower_dim,                      
         height=lower_dim,                     
@@ -141,8 +143,6 @@ if __name__ == '__main__':
     )
     
     #------------------ configs
-    fixedRow = lower_dim                                # core ML program requires fixed input size
-    fixedCol = 518 if customModel else 518
     img_path = "./data/camera/"
     outdir   = "./data/outputs"
     numFiles = len(os.listdir(img_path))
