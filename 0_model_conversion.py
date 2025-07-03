@@ -78,12 +78,12 @@ if __name__ == '__main__':
     encoder = "vits"
     torch_model = loadTorchModel(f'checkpoints/depth_anything_v2_{encoder}.pth', encoder)
     torch_model.eval()
-    wrapped = DepthWrapper(torch_model)
-    wrapped.eval()
+    wrapped = DepthWrapper(torch_model).eval()
 
     #==================== conversion
     example_input = torch.rand(1, 3, 518, 518)
     traced_model = torch.jit.trace(wrapped, example_input)
+    traced_model = torch.jit.freeze(traced_model)  
 
     mlProg = ct.convert(traced_model,
                         convert_to="mlprogram",
