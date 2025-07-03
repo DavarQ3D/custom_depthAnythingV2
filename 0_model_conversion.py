@@ -83,7 +83,7 @@ if __name__ == '__main__':
 
     #==================== conversion
     h = 518
-    w = 518 
+    w = 686 
     example_input = torch.rand(1, 3, h, w)
     traced_model = torch.jit.trace(wrapped, example_input)
     traced_model = torch.jit.freeze(traced_model)  
