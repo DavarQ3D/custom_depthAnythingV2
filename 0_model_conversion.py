@@ -4,6 +4,7 @@ import torch
 import torch.nn as nn
 from depth_anything_v2.dpt import DepthAnythingV2
 from depth_anything_v2.dinov2 import DinoVisionTransformer
+from shutil import copytree
 
 #--------------------------------------------------------------------------------------------------------------
 
@@ -81,7 +82,9 @@ if __name__ == '__main__':
     wrapped = DepthWrapper(torch_model).eval()
 
     #==================== conversion
-    example_input = torch.rand(1, 3, 518, 518)
+    h = 518
+    w = 518 
+    example_input = torch.rand(1, 3, h, w)
     traced_model = torch.jit.trace(wrapped, example_input)
     traced_model = torch.jit.freeze(traced_model)  
 
@@ -93,4 +96,9 @@ if __name__ == '__main__':
                         inputs=[ct.ImageType(name="image", shape=example_input.shape, color_layout=ct.colorlayout.RGB)],
                         outputs=[ct.ImageType(name="depth", color_layout=ct.colorlayout.GRAYSCALE_FLOAT16)])
     
-    mlProg.save(f'checkpoints/custom_{encoder}_F16.mlpackage')
+    # mlProg.save(f'checkpoints/custom_{encoder}_F16_{h}_{w}.mlpackage')
+
+    #==================== save the compiled model for fast initialization
+    compiled_model_path = mlProg.get_compiled_model_path()
+    copytree(compiled_model_path, f'checkpoints/custom_{encoder}_F16_{h}_{w}.mlmodelc', dirs_exist_ok=True)
+    

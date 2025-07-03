@@ -126,7 +126,7 @@ if __name__ == '__main__':
 
     #------------------ load the Core ML model
     customModel = True
-    mlProgram = ct.models.MLModel("./checkpoints/custom_vits_F16.mlpackage") if customModel else ct.models.MLModel("./checkpoints/DepthAnythingV2SmallF16.mlpackage")
+    mlProgram = ct.models.CompiledMLModel("./checkpoints/custom_vits_F16_518_518.mlmodelc") if customModel else ct.models.MLModel("./checkpoints/DepthAnythingV2SmallF16.mlpackage")
 
     #------------------ resizer
     lower_dim = 518 if customModel else 392
