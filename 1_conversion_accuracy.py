@@ -159,7 +159,7 @@ def displayImage(title, image):
 if __name__ == '__main__':
 
     #---------- bilinear interpolation for pos encoding vs original bicubic
-    # DinoVisionTransformer.interpolate_pos_encoding = interpolate_pos_encoding_bilinear
+    DinoVisionTransformer.interpolate_pos_encoding = interpolate_pos_encoding_bilinear
 
     #--------------------- load the torch model
     encoder = "vits"
