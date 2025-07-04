@@ -156,6 +156,26 @@ def displayImage(title, image):
 
 #=============================================================================================================
 
+def customResize(image, lower_dim, resizeMode = "lower_bound"):
+
+    assert resizeMode in ("lower_bound", "upper_bound")
+
+    resizer = transform.Resize(
+        width=lower_dim,                      
+        height=lower_dim,                     
+        resize_target=False,                  
+        keep_aspect_ratio=True,
+        ensure_multiple_of=14,
+        resize_method=resizeMode,      
+        image_interpolation_method=cv2.INTER_CUBIC,
+    )
+
+    sample = {"image": image}
+    sample = resizer(sample)               
+    return sample["image"]   
+
+#=============================================================================================================
+
 if __name__ == '__main__':
 
     #---------- bilinear interpolation for pos encoding vs original bicubic
@@ -172,22 +192,6 @@ if __name__ == '__main__':
     fixedCol = 686 if customModel else 518
     mlProgram = ct.models.CompiledMLModel(f"./checkpoints/custom_vits_F16_{fixedRow}_{fixedCol}.mlmodelc") if customModel else ct.models.MLModel("./checkpoints/DepthAnythingV2SmallF16.mlpackage")
 
-    #------------------ resizer
-    resizer = transform.Resize(
-        width=lower_dim,                      
-        height=lower_dim,                     
-        resize_target=False,                  
-        keep_aspect_ratio=True,
-        ensure_multiple_of=14,
-        resize_method="lower_bound",      
-        image_interpolation_method=cv2.INTER_CUBIC,
-    )
-
-    def customResize(image):
-        sample = {"image": image}
-        sample = resizer(sample)               
-        return sample["image"]   
-    
     #------------------ configs
     img_path = "./data/camera/"
     outdir   = "./data/outputs"
@@ -206,7 +210,7 @@ if __name__ == '__main__':
 
         raw_image = cv2.imread(filename)
                
-        resized = customResize(raw_image)               
+        resized = customResize(raw_image, lower_dim, resizeMode="lower_bound")               
 
         cropped = center_crop_or_pad(resized, fixedRow, fixedCol)  
         depth_torch = inferFromTorch(torch_model, cropped, fixedRow)
