@@ -182,6 +182,11 @@ if __name__ == '__main__':
         resize_method="lower_bound",      
         image_interpolation_method=cv2.INTER_CUBIC,
     )
+
+    def customResize(image):
+        sample = {"image": image}
+        sample = resizer(sample)               
+        return sample["image"]   
     
     #------------------ configs
     img_path = "./data/camera/"
@@ -200,10 +205,8 @@ if __name__ == '__main__':
         print("=========================================================", '\n')
 
         raw_image = cv2.imread(filename)
-
-        sample = {"image": raw_image}
-        sample = resizer(sample)               
-        resized = sample["image"]                
+               
+        resized = customResize(raw_image)               
 
         cropped = center_crop_or_pad(resized, fixedRow, fixedCol)  
         depth_torch = inferFromTorch(torch_model, cropped, fixedRow)
