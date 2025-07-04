@@ -86,8 +86,9 @@ def center_crop_or_pad(img: np.ndarray, desiredRow: int, desiredCol: int) -> np.
         img = cv2.copyMakeBorder(
             img,
             pad_top, pad_bottom, pad_left, pad_right,
-            borderType=cv2.BORDER_CONSTANT,
-            value = 0
+            borderType=cv2.BORDER_REFLECT_101,
+            # borderType=cv2.BORDER_CONSTANT,
+            # value = 0
         )
 
     return img
