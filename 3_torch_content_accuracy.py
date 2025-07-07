@@ -137,6 +137,18 @@ def customResize(image, lower_dim, resizeMode = "lower_bound"):
     return sample["image"]   
 
 #=============================================================================================================
+from pathlib import Path
+
+def loadMatrixFromFile(path):
+
+    path = Path(path)
+    # np.loadtxt handles stripping whitespace; `dtype=np.float64` enforces double precision
+    matrix = np.loadtxt(path, delimiter=',', dtype=np.float64)
+
+    # If you ever need the transposed orientation, just call matrix.T
+    return matrix
+
+#=============================================================================================================
 
 if __name__ == '__main__':
 
@@ -160,16 +172,14 @@ if __name__ == '__main__':
         print(f'========= sample --> {idx} =========')
         print("=========================================================", '\n')
 
-        # rgbPath = img_path + f"RGB_{idx + 1:04d}.JPG"
+        # rgbPath = img_path + f"RGB_{idx+1:04d}.JPG"
         rgbPath = img_path + f"RGB_{10:04d}.JPG"
         raw_image = cv2.imread(rgbPath)
 
-        cv2.imshow("RGB", raw_image)
-        key = cv2.waitKey(0)
-        if key == 27:   
-            cv2.destroyAllWindows()
-            exit()
+        # refDepthpath = lidar_path + f"DepthValues_{idx+1:04d}.txt"
+        refDepthpath = lidar_path + f"DepthValues_{10:04d}.txt"
+        gtDepth = loadMatrixFromFile(refDepthpath)
+        gtDepth = cv2.rotate(gtDepth, cv2.ROTATE_90_CLOCKWISE)
 
-        # refDepthPath = img_path + f"ARKIT_{idx + 1:04d}.JPG"
 
 
