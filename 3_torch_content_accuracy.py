@@ -1,9 +1,25 @@
-import coremltools as ct
 import cv2
 import numpy as np
+import torch
 from PIL import Image
+from depth_anything_v2.dpt import DepthAnythingV2
 import os
 from depth_anything_v2.util import transform
+
+#=============================================================================================================
+
+def loadTorchModel(modelPath, encoder):
+    DEVICE = 'cuda' if torch.cuda.is_available() else 'mps' if torch.backends.mps.is_available() else 'cpu'
+    model_configs = {
+        'vits': {'encoder': 'vits', 'features': 64, 'out_channels': [48, 96, 192, 384]},
+        'vitb': {'encoder': 'vitb', 'features': 128, 'out_channels': [96, 192, 384, 768]},
+        'vitl': {'encoder': 'vitl', 'features': 256, 'out_channels': [256, 512, 1024, 1024]},
+        'vitg': {'encoder': 'vitg', 'features': 384, 'out_channels': [1536, 1536, 1536, 1536]}
+    }    
+    depth_anything = DepthAnythingV2(**model_configs[encoder])
+    depth_anything.load_state_dict(torch.load(modelPath, map_location='cpu'))
+    depth_anything = depth_anything.to(DEVICE).eval()
+    return depth_anything    
 
 #=============================================================================================================
 
@@ -31,11 +47,17 @@ def center_crop_or_pad(img: np.ndarray, desiredRow: int, desiredCol: int) -> np.
         img = cv2.copyMakeBorder(
             img,
             pad_top, pad_bottom, pad_left, pad_right,
-            borderType=cv2.BORDER_CONSTANT,
-            value = 0
+            borderType=cv2.BORDER_REFLECT_101,
+            # borderType=cv2.BORDER_CONSTANT,
+            # value = 0
         )
 
     return img
+
+#=============================================================================================================
+
+def inferFromTorch(model, image, input_size):
+    return model.infer_image(image, input_size, doResize=False)
 
 #=============================================================================================================
 
@@ -65,8 +87,10 @@ def analyzeAndPrepVis(ref, pred, mode = "color"):
 
     ref = normalize(ref)
     pred = normalize(pred)
+    
     err = np.abs(ref - pred)
     print("err ---> min:", fp(err.min()), ", max:", fp(err.max()), "--> RMSE:", fp(np.sqrt((err**2).mean()), 6))
+    err = normalize(err)
 
     ref = denormalize(ref)
     pred = denormalize(pred)    
@@ -94,38 +118,35 @@ def displayImage(title, image):
 
 #=============================================================================================================
 
-def fit(ref, target):
+def customResize(image, lower_dim, resizeMode = "lower_bound"):
 
-    ref = normalize(ref)
-    target = normalize(target)
+    assert resizeMode in ("lower_bound", "upper_bound")
 
-
-
-#=============================================================================================================
-
-if __name__ == '__main__':
-
-    #------------------ load the Core ML model
-    customModel = True
-    mlProgram = ct.models.MLModel("./checkpoints/custom_vits_F16.mlpackage") if customModel else ct.models.MLModel("./checkpoints/DepthAnythingV2SmallF16.mlpackage")
-    # mlProgram = None
-
-    #------------------ resizer
-    lower_dim = 518 if customModel else 392
     resizer = transform.Resize(
         width=lower_dim,                      
         height=lower_dim,                     
         resize_target=False,                  
         keep_aspect_ratio=True,
         ensure_multiple_of=14,
-        resize_method="lower_bound",      
+        resize_method=resizeMode,      
         image_interpolation_method=cv2.INTER_CUBIC,
     )
-    
+
+    sample = {"image": image}
+    sample = resizer(sample)               
+    return sample["image"]   
+
+#=============================================================================================================
+
+if __name__ == '__main__':
+
+    #--------------------- load the torch model
+    encoder = "vits"
+    torch_model = loadTorchModel(f'checkpoints/depth_anything_v2_{encoder}.pth', encoder)
+
     #------------------ configs
-    fixedRow = lower_dim                                # core ML program requires fixed input size
-    fixedCol = 686 if customModel else 518
-    img_path = "./data/iphone_pro/"
+    img_path = "./data/iphone_images/"
+    lidar_path = "./data/iphone_pro_lidar/"
     outdir   = "./data/outputs"
     os.makedirs(outdir, exist_ok=True)
     numFiles = len(os.listdir(img_path)) 
@@ -139,35 +160,16 @@ if __name__ == '__main__':
         print(f'========= sample --> {idx} =========')
         print("=========================================================", '\n')
 
-        refDepthPath = img_path + f"ARKIT_{idx + 1:02d}.JPG"
-        refDepth = cv2.imread(refDepthPath, cv2.IMREAD_GRAYSCALE)
-
-        rgbPath = img_path + f"RGB_{idx + 1:02d}.JPG"
+        # rgbPath = img_path + f"RGB_{idx + 1:04d}.JPG"
+        rgbPath = img_path + f"RGB_{10:04d}.JPG"
         raw_image = cv2.imread(rgbPath)
 
-        sample = {"image": raw_image}
-        sample = resizer(sample)               
-        resized = sample["image"]       
-        
-        cropped = center_crop_or_pad(resized, fixedRow, fixedCol)  
+        cv2.imshow("RGB", raw_image)
+        key = cv2.waitKey(0)
+        if key == 27:   
+            cv2.destroyAllWindows()
+            exit()
 
-        predDepth = inferFromCoreml(mlProgram, cropped)        
-        predDepth = normalize(predDepth)
+        # refDepthPath = img_path + f"ARKIT_{idx + 1:04d}.JPG"
 
-        # cv2.imshow("raw_image", raw_image)
-        # cv2.imshow("resized", resized)
-        # cv2.imshow("cropped", cropped)
-        # cv2.imshow("predDepth", predDepth)
-        # cv2.imshow("refDepth", refDepth)
-        # key = cv2.waitKey(0)
-        # if key == 27:   
-        #     cv2.destroyAllWindows()
-        #     exit()
 
-        # fit(refDepth, predDepth)
-    
-
-        # displayImage("depth_coreml", predDepth)
-    
-        # visualRes = analyzeAndPrepVis(depth_torch, depth_coreml, mode="color")
-        # displayImage("visualRes", visualRes)
