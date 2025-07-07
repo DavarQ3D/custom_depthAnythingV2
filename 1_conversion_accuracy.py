@@ -180,7 +180,7 @@ def customResize(image, lower_dim, resizeMode = "lower_bound"):
 if __name__ == '__main__':
 
     #---------- bilinear interpolation for pos encoding vs original bicubic
-    DinoVisionTransformer.interpolate_pos_encoding = interpolate_pos_encoding_bilinear
+    # DinoVisionTransformer.interpolate_pos_encoding = interpolate_pos_encoding_bilinear
 
     #--------------------- load the torch model
     encoder = "vits"
