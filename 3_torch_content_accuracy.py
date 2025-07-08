@@ -183,6 +183,26 @@ def fitContentTo(pred: np.ndarray,
     aligned = scale * pred + shift
     return aligned, scale, shift
 
+#=============================================================================================================
+
+def checkIfSynced(rgb, depth):
+    rgb = cv2.resize(rgb, (depth.shape[1], depth.shape[0]), interpolation=cv2.INTER_CUBIC)
+    gray = cv2.cvtColor(rgb, cv2.COLOR_BGR2GRAY)
+    gray = normalize(gray)
+    depth = normalize(depth)
+    diff = np.abs(gray - depth)
+    gray = cv2.resize(gray, (gray.shape[1] * 4, gray.shape[0] * 4), interpolation=cv2.INTER_CUBIC)
+    depth = cv2.resize(depth, (depth.shape[1] * 4, depth.shape[0] * 4), interpolation=cv2.INTER_CUBIC)
+    diff = cv2.resize(diff, (diff.shape[1] * 4, diff.shape[0] * 4), interpolation=cv2.INTER_CUBIC)
+    # cv2.imshow("gray", gray)
+    # cv2.imshow("depth", depth)
+    cv2.imshow("diff", diff)
+    key = cv2.waitKey(0)
+    if key == 27:
+        cv2.destroyAllWindows()
+        exit()
+
+#=============================================================================================================
 
 if __name__ == '__main__':
 
@@ -214,6 +234,8 @@ if __name__ == '__main__':
         refDepthpath = lidar_path + f"DepthValues_{10:04d}.txt"
         gt = loadMatrixFromFile(refDepthpath)
         gt = cv2.rotate(gt, cv2.ROTATE_90_CLOCKWISE)
+
+        # checkIfSynced(raw_image, gt)
 
         resized = cv2.resize(raw_image, (gt.shape[1], gt.shape[0]), interpolation=cv2.INTER_CUBIC)
 
