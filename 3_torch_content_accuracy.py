@@ -155,7 +155,33 @@ def ensure_multiple_of(x, multiple_of=14):
 
 #=============================================================================================================
 
-# def fitContentTo(pred, gt):
+def fitContentTo(pred: np.ndarray,
+                 gt:   np.ndarray,
+                 mask: np.ndarray | None = None,
+                 *,
+                 allow_shift: bool = True,
+                 eps: float = 1e-8):
+
+    if mask is None:
+        mask = (gt > 0) & np.isfinite(gt) & np.isfinite(pred)
+
+    if not mask.any():
+        raise ValueError("No valid pixels in mask for scale/shift fitting")
+
+    if allow_shift:
+        # Least-squares: [pred, 1] ⋅ [s, t]ᵀ ≈ gt
+        A = np.vstack([pred[mask].ravel(),
+                       np.ones(mask.sum())]).T
+        scale, shift = np.linalg.lstsq(A, gt[mask].ravel(),
+                                       rcond=None)[0]
+    else:
+        # Median-based scale only (Monodepth-style)
+        scale = (np.median(gt[mask]) /
+                 (np.median(pred[mask]) + eps))
+        shift = 0.0
+
+    aligned = scale * pred + shift
+    return aligned, scale, shift
 
 
 if __name__ == '__main__':
@@ -197,10 +223,22 @@ if __name__ == '__main__':
         gt = gt[0 : r, 0 : c]
 
         pred = inferFromTorch(torch_model, cropped, c)
-        eps = 1e-8
-        pred = 1.0 / (pred + eps)  
+        # eps = 1e-8
+        # pred = 1.0 / (pred + eps)  
 
-        # pred = fitContentTo(pred, gt)
+        pred, scale, shift = fitContentTo(pred, gt)
+
+        print(f"Scale: {fp(scale)}, Shift: {fp(shift)}")
+
+        diff = np.abs(gt - pred)
+        cv2.imshow("cropped", cropped)
+        cv2.imshow("gt", gt)
+        cv2.imshow("pred", pred)
+        cv2.imshow("diff", diff)
+        key = cv2.waitKey(0)
+        if key == 27:  
+            cv2.destroyAllWindows()
+            exit()
 
 
         
