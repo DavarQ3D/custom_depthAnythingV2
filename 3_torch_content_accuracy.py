@@ -155,36 +155,6 @@ def ensure_multiple_of(x, multiple_of=14):
 
 #=============================================================================================================
 
-def fitContentTo(pred: np.ndarray,
-                 gt:   np.ndarray,
-                 mask: np.ndarray | None = None,
-                 *,
-                 allow_shift: bool = True,
-                 eps: float = 1e-8):
-
-    if mask is None:
-        mask = (gt > 0) & np.isfinite(gt) & np.isfinite(pred)
-
-    if not mask.any():
-        raise ValueError("No valid pixels in mask for scale/shift fitting")
-
-    if allow_shift:
-        # Least-squares: [pred, 1] ⋅ [s, t]ᵀ ≈ gt
-        A = np.vstack([pred[mask].ravel(),
-                       np.ones(mask.sum())]).T
-        scale, shift = np.linalg.lstsq(A, gt[mask].ravel(),
-                                       rcond=None)[0]
-    else:
-        # Median-based scale only (Monodepth-style)
-        scale = (np.median(gt[mask]) /
-                 (np.median(pred[mask]) + eps))
-        shift = 0.0
-
-    aligned = scale * pred + shift
-    return aligned, scale, shift
-
-#=============================================================================================================
-
 def checkIfSynced(rgb, depth):
     rgb = cv2.resize(rgb, (depth.shape[1], depth.shape[0]), interpolation=cv2.INTER_CUBIC)
     gray = cv2.cvtColor(rgb, cv2.COLOR_BGR2GRAY)
@@ -201,6 +171,29 @@ def checkIfSynced(rgb, depth):
     if key == 27:
         cv2.destroyAllWindows()
         exit()
+
+#=============================================================================================================
+
+def fitContentTo(pred, gt, allow_shift = True, mask=None):
+
+    if mask is None:
+        mask = (gt > 0) & np.isfinite(gt) & np.isfinite(pred)
+
+    if not mask.any():
+        raise ValueError("No valid pixels in mask for scale/shift fitting")
+
+    if allow_shift:
+        # Least-squares: [pred, 1] ⋅ [s, t]ᵀ ≈ gt
+        A = np.vstack([pred[mask].ravel(), np.ones(mask.sum())]).T
+        scale, shift = np.linalg.lstsq(A, gt[mask].ravel(), rcond=None)[0]
+    else:
+        # Median-based scale only (Monodepth-style)
+        eps = 1e-8  
+        scale = (np.median(gt[mask]) / (np.median(pred[mask]) + eps))
+        shift = 0.0
+
+    aligned = scale * pred + shift
+    return aligned, scale, shift
 
 #=============================================================================================================
 
@@ -233,6 +226,7 @@ if __name__ == '__main__':
         refDepthpath = lidar_path + f"DepthValues_{idx+1:04d}.txt"
         gt = loadMatrixFromFile(refDepthpath)
         gt = cv2.rotate(gt, cv2.ROTATE_90_CLOCKWISE)
+        # gt = normalize(gt)
 
         # checkIfSynced(raw_image, gt)
 
@@ -244,10 +238,15 @@ if __name__ == '__main__':
         gt = gt[0 : r, 0 : c]
 
         pred = inferFromTorch(torch_model, cropped, c)
+        pred = normalize(pred)
         eps = 1e-8
-        pred = 1.0 / (pred + eps)  
+        pred = 1.0 / (pred + eps) 
 
-        pred, scale, shift = fitContentTo(pred, gt)
+        print("step 3 --> min:", fp(pred.min()), ", max:", fp(pred.max()))
+        displayImage("pred", pred)
+        exit()
+
+        pred, scale, shift = fitContentTo(pred, gt, allow_shift=True)
 
         print(f"Scale: {fp(scale)}, Shift: {fp(shift)}")
 
