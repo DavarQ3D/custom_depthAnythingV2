@@ -223,8 +223,8 @@ if __name__ == '__main__':
         gt = gt[0 : r, 0 : c]
 
         pred = inferFromTorch(torch_model, cropped, c)
-        # eps = 1e-8
-        # pred = 1.0 / (pred + eps)  
+        eps = 1e-8
+        pred = 1.0 / (pred + eps)  
 
         pred, scale, shift = fitContentTo(pred, gt)
 
