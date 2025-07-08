@@ -226,12 +226,11 @@ if __name__ == '__main__':
         print(f'========= sample --> {idx} =========')
         print("=========================================================", '\n')
 
-        # rgbPath = img_path + f"RGB_{idx+1:04d}.JPG"
-        rgbPath = img_path + f"RGB_{10:04d}.JPG"
+        rgbPath = img_path + f"RGB_{idx+2:04d}.JPG"
         raw_image = cv2.imread(rgbPath)
+        raw_image = cv2.rotate(raw_image, cv2.ROTATE_90_CLOCKWISE)
 
-        # refDepthpath = lidar_path + f"DepthValues_{idx+1:04d}.txt"
-        refDepthpath = lidar_path + f"DepthValues_{10:04d}.txt"
+        refDepthpath = lidar_path + f"DepthValues_{idx+1:04d}.txt"
         gt = loadMatrixFromFile(refDepthpath)
         gt = cv2.rotate(gt, cv2.ROTATE_90_CLOCKWISE)
 
