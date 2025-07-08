@@ -150,6 +150,11 @@ def loadMatrixFromFile(path):
 
 #=============================================================================================================
 
+def ensure_multiple_of(x, multiple_of=14):
+    return (np.floor(x / multiple_of) * multiple_of).astype(int)
+
+#=============================================================================================================
+
 if __name__ == '__main__':
 
     #--------------------- load the torch model
@@ -180,6 +185,36 @@ if __name__ == '__main__':
         refDepthpath = lidar_path + f"DepthValues_{10:04d}.txt"
         gtDepth = loadMatrixFromFile(refDepthpath)
         gtDepth = cv2.rotate(gtDepth, cv2.ROTATE_90_CLOCKWISE)
+
+        resized = cv2.resize(raw_image, (gtDepth.shape[1], gtDepth.shape[0]), interpolation=cv2.INTER_CUBIC)
+
+        r = ensure_multiple_of(resized.shape[0], multiple_of=14)
+        c = ensure_multiple_of(resized.shape[1], multiple_of=14)
+        cropped = resized[0 : r, 0 : c, :]
+        gtDepth = gtDepth[0 : r, 0 : c]
+
+        torchDepth = inferFromTorch(torch_model, cropped, c)
+
+        torchDepth = normalize(torchDepth)
+        torchDepth = 1 - torchDepth
+        gtDepth = normalize(gtDepth)
+
+        cv2.imshow("torchDepth", torchDepth)
+        cv2.imshow("gtDepth", gtDepth)
+        key = cv2.waitKey(0)
+        if key == 27:
+            cv2.destroyAllWindows()
+            exit()
+
+        
+
+
+
+
+
+        
+
+
 
 
 
