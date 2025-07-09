@@ -80,12 +80,15 @@ def normalize(image):
 def denormalize(image):
     return (image * 255).astype(np.uint8)
 
-def analyzeAndPrepVis(ref, pred, mode = "color"):
+def analyzeAndPrepVis(rgb, ref, pred, mode = "color"):
 
     assert mode in ("color", "grayscale")
     
     err = np.abs(ref - pred)
     print("err ---> min:", fp(err.min()), ", max:", fp(err.max()), "--> RMSE:", fp(np.sqrt((err**2).mean()), 6))
+
+    ref = normalize(ref)
+    pred = normalize(pred)
     err = normalize(err)
 
     ref = denormalize(ref)
@@ -93,14 +96,15 @@ def analyzeAndPrepVis(ref, pred, mode = "color"):
     err = denormalize(err)
 
     if mode == "grayscale":
-        return cv2.hconcat([ref, pred, err])
+        gray = cv2.cvtColor(rgb, cv2.COLOR_BGR2GRAY)
+        return cv2.hconcat([gray, ref, pred, err])
 
     ref = cv2.cvtColor(ref, cv2.COLOR_GRAY2BGR)
     pred = cv2.cvtColor(pred, cv2.COLOR_GRAY2BGR)
     err = cv2.cvtColor(err, cv2.COLOR_GRAY2BGR)
     err = cv2.applyColorMap(err, cv2.COLORMAP_JET)
 
-    return cv2.hconcat([ref, pred, err])
+    return cv2.hconcat([rgb, ref, pred, err])
 
 
 #=============================================================================================================
@@ -175,7 +179,7 @@ class FittingMode(Enum):
     SolveForScaleAndShift = 1
     MedianScaleOnly = 2
 
-def fitTo(pred, gt, mode, mask=None):
+def estimateParameters(pred, gt, mode, mask=None):
 
     if mask is None:
         mask = (gt > 0) & np.isfinite(gt) & np.isfinite(pred)
@@ -200,8 +204,7 @@ def fitTo(pred, gt, mode, mask=None):
     else:
         raise ValueError(f"Unknown fitting mode: {mode}")
 
-    aligned = scale * pred + shift
-    return aligned, scale, shift
+    return scale, shift
 
 #=============================================================================================================
 
@@ -231,8 +234,8 @@ if __name__ == '__main__':
         raw_image = cv2.imread(rgbPath)
         raw_image = cv2.rotate(raw_image, cv2.ROTATE_90_CLOCKWISE)
 
-        refDepthpath = lidar_path + f"DepthValues_{idx+1:04d}.txt"
-        gt = loadMatrixFromFile(refDepthpath)
+        gtPath = lidar_path + f"DepthValues_{idx+1:04d}.txt"
+        gt = loadMatrixFromFile(gtPath)
         gt = cv2.rotate(gt, cv2.ROTATE_90_CLOCKWISE)
         gt = 1 / gt + 1e-8                               # convert depth to disparity (inverse depth)
         gt = normalize(gt)
@@ -249,8 +252,10 @@ if __name__ == '__main__':
         pred = inferFromTorch(torch_model, cropped, c)   # inferred disparity
         pred = normalize(pred)
 
-        pred, scale, shift = fitTo(pred, gt, mode=FittingMode.SolveForScaleAndShift)
-        visualRes = analyzeAndPrepVis(gt, pred, mode="color")
+        scale, shift = estimateParameters(pred, gt, mode=FittingMode.SolveForScaleAndShift)     
+        pred = scale * pred + shift
+
+        visualRes = analyzeAndPrepVis(cropped, gt, pred, mode="color")
         visualRes = cv2.resize(visualRes, (visualRes.shape[1] * 3, visualRes.shape[0] * 3), interpolation=cv2.INTER_CUBIC)
         displayImage("visualRes", visualRes)
 
