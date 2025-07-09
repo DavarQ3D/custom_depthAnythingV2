@@ -237,10 +237,11 @@ if __name__ == '__main__':
         gtPath = lidar_path + f"DepthValues_{idx+1:04d}.txt"
         gt = loadMatrixFromFile(gtPath)
         gt = cv2.rotate(gt, cv2.ROTATE_90_CLOCKWISE)
-        gt = 1 / gt + 1e-8                               # convert depth to disparity (inverse depth)
-        gt = normalize(gt)
 
         # checkIfSynced(raw_image, gt)
+
+        gt = 1 / gt + 1e-8                               # convert depth to disparity (inverse depth)
+        gt = normalize(gt)
 
         resized = cv2.resize(raw_image, (gt.shape[1], gt.shape[0]), interpolation=cv2.INTER_CUBIC)
 
