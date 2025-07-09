@@ -164,8 +164,8 @@ def checkIfSynced(rgb, depth):
     gray = cv2.resize(gray, (gray.shape[1] * 4, gray.shape[0] * 4), interpolation=cv2.INTER_CUBIC)
     depth = cv2.resize(depth, (depth.shape[1] * 4, depth.shape[0] * 4), interpolation=cv2.INTER_CUBIC)
     diff = cv2.resize(diff, (diff.shape[1] * 4, diff.shape[0] * 4), interpolation=cv2.INTER_CUBIC)
-    cv2.imshow("gray", gray)
-    cv2.imshow("depth", depth)
+    # cv2.imshow("gray", gray)
+    # cv2.imshow("depth", depth)
     cv2.imshow("diff", diff)
     key = cv2.waitKey(0)
     if key == 27:
