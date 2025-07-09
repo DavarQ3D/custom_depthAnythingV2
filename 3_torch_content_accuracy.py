@@ -81,7 +81,7 @@ def normalize(image):
 def denormalize(image):
     return (image * 255).astype(np.uint8)
 
-def analyzeAndPrepVis(rgb, mask, ref, pred, mode = "color"):
+def analyzeAndPrepVis(rgb, mask, ref, pred, mode = "color", normalizeError=True):
 
     assert mode in ("color", "grayscale")
     
@@ -91,7 +91,9 @@ def analyzeAndPrepVis(rgb, mask, ref, pred, mode = "color"):
 
     ref = normalize(ref)
     pred = normalize(pred)
-    err = normalize(err)
+
+    if normalizeError:
+        err = normalize(err)
 
     ref = denormalize(ref)
     pred = denormalize(pred)    
@@ -266,7 +268,9 @@ if __name__ == '__main__':
         scale, shift, mask = estimateParameters(pred, gt, mode=FittingMode.SolveForScaleAndShift)     
         pred = scale * pred + shift
 
-        visualRes = analyzeAndPrepVis(cropped, mask, gt, pred, mode="color")
+        print("Scale:", fp(scale), ", Shift:", fp(shift), '\n')
+
+        visualRes = analyzeAndPrepVis(cropped, mask, gt, pred, mode="color", normalizeError=False)
         visualRes = cv2.resize(visualRes, (visualRes.shape[1] * 3, visualRes.shape[0] * 3), interpolation=cv2.INTER_CUBIC)
         displayImage("visualRes", visualRes)
 
