@@ -85,9 +85,9 @@ def analyzeAndPrepVis(rgb, mask, ref, pred, mode = "color"):
 
     assert mode in ("color", "grayscale")
     
-    err = np.abs(ref - pred) * mask
-    validPixels = err[mask.astype(bool)]
-    print("err ---> min:", fp(validPixels.min()), ", max:", fp(validPixels.max()), "--> RMSE:", fp(np.sqrt((validPixels**2).mean()), 6))
+    err = np.abs(ref - pred)
+    valid = err[mask]
+    print("err ---> min:", fp(valid.min()), ", max:", fp(valid.max()), "--> RMSE:", fp(np.sqrt((valid**2).mean()), 6))
 
     ref = normalize(ref)
     pred = normalize(pred)
@@ -107,7 +107,6 @@ def analyzeAndPrepVis(rgb, mask, ref, pred, mode = "color"):
     err = cv2.applyColorMap(err, cv2.COLORMAP_JET)
 
     return cv2.hconcat([rgb, ref, pred, err])
-
 
 #=============================================================================================================
 
