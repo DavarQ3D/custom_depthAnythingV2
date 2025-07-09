@@ -54,7 +54,7 @@ def center_crop_or_pad(img: np.ndarray, desiredRow: int, desiredCol: int) -> np.
             # value = 0
         )
 
-    return img
+    return img, top
 
 #=============================================================================================================
 
@@ -219,6 +219,8 @@ if __name__ == '__main__':
 
     #------------------ inference loop
     #------------------------------------------------------------------
+
+    smallInference = False
     
     for idx in range(numFiles):
 
@@ -236,19 +238,31 @@ if __name__ == '__main__':
 
         # checkIfSynced(raw_image, gt)
 
-        gt = 1 / gt + 1e-8                               # convert depth to disparity (inverse depth)
+        gt = 1 / gt + 1e-8                                    # convert depth to disparity (inverse depth)
         gt = normalize(gt)
 
-        resized = cv2.resize(raw_image, (gt.shape[1], gt.shape[0]), interpolation=cv2.INTER_CUBIC)
+        if smallInference:
+            resized = cv2.resize(raw_image, (gt.shape[1], gt.shape[0]), interpolation=cv2.INTER_CUBIC)
+            r = ensure_multiple_of(resized.shape[0], multiple_of=14)
+            c = ensure_multiple_of(resized.shape[1], multiple_of=14)
+            cropped = resized[0 : r, 0 : c, :]
+            gt = gt[0 : r, 0 : c]
+            pred = inferFromTorch(torch_model, cropped, min(r, c))   # inferred disparity
 
-        r = ensure_multiple_of(resized.shape[0], multiple_of=14)
-        c = ensure_multiple_of(resized.shape[1], multiple_of=14)
-        cropped = resized[0 : r, 0 : c, :]
-        gt = gt[0 : r, 0 : c]
+        else:
+            sc = 518 / min(raw_image.shape[:2])
+            resized = cv2.resize(raw_image, (int(raw_image.shape[1] * sc), int(raw_image.shape[0] * sc)), interpolation=cv2.INTER_CUBIC)
+            r = ensure_multiple_of(resized.shape[0], multiple_of=14)
+            c = ensure_multiple_of(resized.shape[1], multiple_of=14)
+            cropped, top = center_crop_or_pad(resized, r, c)
+            pred = inferFromTorch(torch_model, cropped, min(r, c)) 
+            gtMarg = (top * 2) / (resized.shape[0] / gt.shape[0])
+            gtMarg = round(gtMarg / 2)                          # round to the nearest even number
+            gt = gt[gtMarg : -gtMarg, :]
+            pred = cv2.resize(pred, (gt.shape[1], gt.shape[0]), interpolation=cv2.INTER_CUBIC)
+            cropped = cv2.resize(cropped, (gt.shape[1], gt.shape[0]), interpolation=cv2.INTER_CUBIC)
 
-        pred = inferFromTorch(torch_model, cropped, c)   # inferred disparity
         pred = normalize(pred)
-
         scale, shift, mask = estimateParameters(pred, gt, mode=FittingMode.SolveForScaleAndShift)     
         pred = scale * pred + shift
 
