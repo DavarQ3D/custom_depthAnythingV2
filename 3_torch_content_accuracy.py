@@ -5,6 +5,7 @@ from PIL import Image
 from depth_anything_v2.dpt import DepthAnythingV2
 import os
 from depth_anything_v2.util import transform
+from enum import Enum
 
 #=============================================================================================================
 
@@ -82,11 +83,6 @@ def denormalize(image):
 def analyzeAndPrepVis(ref, pred, mode = "color"):
 
     assert mode in ("color", "grayscale")
-    print("ref ---> min:", fp(ref.min()), ", max:", fp(ref.max()))
-    print("pred --> min:", fp(pred.min()), ", max:", fp(pred.max()), '\n')
-
-    ref = normalize(ref)
-    pred = normalize(pred)
     
     err = np.abs(ref - pred)
     print("err ---> min:", fp(err.min()), ", max:", fp(err.max()), "--> RMSE:", fp(np.sqrt((err**2).mean()), 6))
@@ -164,8 +160,8 @@ def checkIfSynced(rgb, depth):
     gray = cv2.resize(gray, (gray.shape[1] * 4, gray.shape[0] * 4), interpolation=cv2.INTER_CUBIC)
     depth = cv2.resize(depth, (depth.shape[1] * 4, depth.shape[0] * 4), interpolation=cv2.INTER_CUBIC)
     diff = cv2.resize(diff, (diff.shape[1] * 4, diff.shape[0] * 4), interpolation=cv2.INTER_CUBIC)
-    # cv2.imshow("gray", gray)
-    # cv2.imshow("depth", depth)
+    cv2.imshow("gray", gray)
+    cv2.imshow("depth", depth)
     cv2.imshow("diff", diff)
     key = cv2.waitKey(0)
     if key == 27:
@@ -174,7 +170,12 @@ def checkIfSynced(rgb, depth):
 
 #=============================================================================================================
 
-def fitContentTo(pred, gt, allow_shift = True, mask=None):
+class FittingMode(Enum):
+    SolveForScaleOnly = 0
+    SolveForScaleAndShift = 1
+    MedianScaleOnly = 2
+
+def fitTo(pred, gt, mode, mask=None):
 
     if mask is None:
         mask = (gt > 0) & np.isfinite(gt) & np.isfinite(pred)
@@ -182,15 +183,22 @@ def fitContentTo(pred, gt, allow_shift = True, mask=None):
     if not mask.any():
         raise ValueError("No valid pixels in mask for scale/shift fitting")
 
-    if allow_shift:
-        # Least-squares: [pred, 1] ⋅ [s, t]ᵀ ≈ gt
+    if mode == FittingMode.SolveForScaleOnly:                                      # Least-squares: [pred] ⋅ [s] ≈ gt
+        A = pred[mask].ravel()[:, np.newaxis]
+        scale = np.linalg.lstsq(A, gt[mask].ravel(), rcond=None)[0][0]
+        shift = 0.0
+
+    elif mode == FittingMode.SolveForScaleAndShift:                                # Least-squares: [pred, 1] ⋅ [s, t]ᵀ ≈ gt
         A = np.vstack([pred[mask].ravel(), np.ones(mask.sum())]).T
         scale, shift = np.linalg.lstsq(A, gt[mask].ravel(), rcond=None)[0]
-    else:
-        # Median-based scale only (Monodepth-style)
+
+    elif mode == FittingMode.MedianScaleOnly:                                      # Median-based scale only (Monodepth-style)                                                    # Median-based scale only (Monodepth-style)
         eps = 1e-8  
         scale = (np.median(gt[mask]) / (np.median(pred[mask]) + eps))
         shift = 0.0
+
+    else:
+        raise ValueError(f"Unknown fitting mode: {mode}")
 
     aligned = scale * pred + shift
     return aligned, scale, shift
@@ -226,7 +234,8 @@ if __name__ == '__main__':
         refDepthpath = lidar_path + f"DepthValues_{idx+1:04d}.txt"
         gt = loadMatrixFromFile(refDepthpath)
         gt = cv2.rotate(gt, cv2.ROTATE_90_CLOCKWISE)
-        # gt = normalize(gt)
+        gt = 1 / gt + 1e-8                               # convert depth to disparity (inverse depth)
+        gt = normalize(gt)
 
         # checkIfSynced(raw_image, gt)
 
@@ -237,28 +246,13 @@ if __name__ == '__main__':
         cropped = resized[0 : r, 0 : c, :]
         gt = gt[0 : r, 0 : c]
 
-        pred = inferFromTorch(torch_model, cropped, c)
+        pred = inferFromTorch(torch_model, cropped, c)   # inferred disparity
         pred = normalize(pred)
-        eps = 1e-8
-        pred = 1.0 / (pred + eps) 
 
-        print("step 3 --> min:", fp(pred.min()), ", max:", fp(pred.max()))
-        displayImage("pred", pred)
-        exit()
-
-        pred, scale, shift = fitContentTo(pred, gt, allow_shift=True)
-
-        print(f"Scale: {fp(scale)}, Shift: {fp(shift)}")
-
-        diff = np.abs(gt - pred)
-        cv2.imshow("cropped", cropped)
-        cv2.imshow("gt", gt)
-        cv2.imshow("pred", pred)
-        cv2.imshow("diff", diff)
-        key = cv2.waitKey(0)
-        if key == 27:  
-            cv2.destroyAllWindows()
-            exit()
+        pred, scale, shift = fitTo(pred, gt, mode=FittingMode.SolveForScaleAndShift)
+        visualRes = analyzeAndPrepVis(gt, pred, mode="color")
+        visualRes = cv2.resize(visualRes, (visualRes.shape[1] * 3, visualRes.shape[0] * 3), interpolation=cv2.INTER_CUBIC)
+        displayImage("visualRes", visualRes)
 
 
         
