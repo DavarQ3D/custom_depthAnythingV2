@@ -6,6 +6,7 @@ from depth_anything_v2.dpt import DepthAnythingV2
 import os
 from depth_anything_v2.util import transform
 from enum import Enum
+from pathlib import Path
 
 #=============================================================================================================
 
@@ -80,12 +81,13 @@ def normalize(image):
 def denormalize(image):
     return (image * 255).astype(np.uint8)
 
-def analyzeAndPrepVis(rgb, ref, pred, mode = "color"):
+def analyzeAndPrepVis(rgb, mask, ref, pred, mode = "color"):
 
     assert mode in ("color", "grayscale")
     
-    err = np.abs(ref - pred)
-    print("err ---> min:", fp(err.min()), ", max:", fp(err.max()), "--> RMSE:", fp(np.sqrt((err**2).mean()), 6))
+    err = np.abs(ref - pred) * mask
+    validPixels = err[mask.astype(bool)]
+    print("err ---> min:", fp(validPixels.min()), ", max:", fp(validPixels.max()), "--> RMSE:", fp(np.sqrt((validPixels**2).mean()), 6))
 
     ref = normalize(ref)
     pred = normalize(pred)
@@ -137,15 +139,10 @@ def customResize(image, lower_dim, resizeMode = "lower_bound"):
     return sample["image"]   
 
 #=============================================================================================================
-from pathlib import Path
 
 def loadMatrixFromFile(path):
-
     path = Path(path)
-    # np.loadtxt handles stripping whitespace; `dtype=np.float64` enforces double precision
     matrix = np.loadtxt(path, delimiter=',', dtype=np.float64)
-
-    # If you ever need the transposed orientation, just call matrix.T
     return matrix
 
 #=============================================================================================================
@@ -204,7 +201,7 @@ def estimateParameters(pred, gt, mode, mask=None):
     else:
         raise ValueError(f"Unknown fitting mode: {mode}")
 
-    return scale, shift
+    return scale, shift, mask
 
 #=============================================================================================================
 
@@ -253,10 +250,10 @@ if __name__ == '__main__':
         pred = inferFromTorch(torch_model, cropped, c)   # inferred disparity
         pred = normalize(pred)
 
-        scale, shift = estimateParameters(pred, gt, mode=FittingMode.SolveForScaleAndShift)     
+        scale, shift, mask = estimateParameters(pred, gt, mode=FittingMode.SolveForScaleAndShift)     
         pred = scale * pred + shift
 
-        visualRes = analyzeAndPrepVis(cropped, gt, pred, mode="color")
+        visualRes = analyzeAndPrepVis(cropped, mask, gt, pred, mode="color")
         visualRes = cv2.resize(visualRes, (visualRes.shape[1] * 3, visualRes.shape[0] * 3), interpolation=cv2.INTER_CUBIC)
         displayImage("visualRes", visualRes)
 
