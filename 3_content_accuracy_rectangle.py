@@ -254,11 +254,10 @@ if __name__ == '__main__':
     mlProgram = ct.models.CompiledMLModel(f"./checkpoints/custom_vits_F16_{686}_{518}.mlmodelc")
 
     #------------------ configs
-    img_path = f"./data/iphone_images_{batch}/"
-    lidar_path = f"./data/iphone_pro_lidar_{batch}/"
-    outdir   = "./data/outputs"
+    inputPath = f"./data/batch_{batch}/"
+    outdir = "./data/outputs"
     os.makedirs(outdir, exist_ok=True)
-    numFiles = len(os.listdir(img_path)) 
+    numFiles = len(os.listdir(inputPath)) // 2
 
     #------------------ inference loop
     #------------------------------------------------------------------
@@ -269,13 +268,12 @@ if __name__ == '__main__':
         print(f'========= sample --> {idx} =========')
         print("=========================================================", '\n')
 
-        rgbPath = img_path + f"RGB_{idx+2:04d}.JPG"
+        rgbPath = inputPath + f"RGB_{idx:04d}.JPG"
         raw_image = cv2.imread(rgbPath)
         raw_image = cv2.rotate(raw_image, cv2.ROTATE_90_CLOCKWISE)
 
-        index = 9 if checkIfSynced else idx + 1
-        prefix = "" if batch == 1 else "ARKit_"
-        gtPath = lidar_path + f"{prefix}DepthValues_{index:04d}.txt" 
+        index = 9 if checkIfSynced else idx
+        gtPath = inputPath + f"DepthValues_{index:04d}.txt" 
         gt = loadMatrixFromFile(gtPath)
         gt = cv2.rotate(gt, cv2.ROTATE_90_CLOCKWISE)
 
