@@ -221,7 +221,7 @@ def estimateParametersRANSAC(pred, gt, mask=None):
     x = pred[mask].ravel().reshape(-1, 1)
     y = gt[mask].ravel()
 
-    ransac = RANSACRegressor()
+    ransac = RANSACRegressor(random_state=3)
     ransac.fit(x, y)
 
     scale = float(ransac.estimator_.coef_[0])
@@ -237,26 +237,29 @@ def estimateParametersRANSAC(pred, gt, mask=None):
 
 if __name__ == '__main__':
 
-    #--------------------- load the torch model
+    #--------------------- settings
+    batch = 1
+    checkIfSynced = False
     encoder = "vits"
+    smallInference = False
+    useCoreML = False
+    robustEstimation = True
+
+    #--------------------- load the torch model
     torch_model = loadTorchModel(f'checkpoints/depth_anything_v2_{encoder}.pth', encoder)
 
     #--------------------- load coreml model
     mlProgram = ct.models.CompiledMLModel(f"./checkpoints/custom_vits_F16_{686}_{518}.mlmodelc")
 
     #------------------ configs
-    img_path = "./data/iphone_images/"
-    lidar_path = "./data/iphone_pro_lidar/"
+    img_path = f"./data/iphone_images_{batch}/"
+    lidar_path = f"./data/iphone_pro_lidar_{batch}/"
     outdir   = "./data/outputs"
     os.makedirs(outdir, exist_ok=True)
     numFiles = len(os.listdir(img_path)) 
 
     #------------------ inference loop
     #------------------------------------------------------------------
-
-    checkIfSynced = False
-    smallInference = False
-    useCoreML = False
     
     for idx in range(numFiles):
 
@@ -302,8 +305,7 @@ if __name__ == '__main__':
             cropped = cv2.resize(cropped, (gt.shape[1], gt.shape[0]), interpolation=cv2.INTER_CUBIC)
 
         pred = normalize(pred)
-        scale, shift, mask = estimateParametersRANSAC(pred, gt) 
-        # scale, shift, mask = estimateParameters(pred, gt, mode=FittingMode.SolveForScaleAndShift)    
+        scale, shift, mask = estimateParametersRANSAC(pred, gt) if robustEstimation else estimateParameters(pred, gt, mode=FittingMode.SolveForScaleAndShift)
         pred = scale * pred + shift
 
         print("Scale:", fp(scale), ", Shift:", fp(shift), '\n')
