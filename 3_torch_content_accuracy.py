@@ -268,7 +268,7 @@ if __name__ == '__main__':
 
         # checkIfSynced(raw_image, gt)
 
-        gt = 1 / gt + 1e-8                                    # convert depth to disparity (inverse depth)
+        gt = 1 / gt + 1e-8                                           # convert depth to disparity (inverse depth)
         gt = normalize(gt)
 
         if smallInference:
@@ -287,7 +287,7 @@ if __name__ == '__main__':
             cropped, top = center_crop_or_pad(resized, r, c)
             pred = inferFromTorch(torch_model, cropped, min(r, c)) 
             gtMarg = (top * 2) / (resized.shape[0] / gt.shape[0])
-            gtMarg = round(gtMarg / 2)                          # round to the nearest even number
+            gtMarg = round(gtMarg / 2)                               # round to the nearest even number
             gt = gt[gtMarg : -gtMarg, :]
             pred = cv2.resize(pred, (gt.shape[1], gt.shape[0]), interpolation=cv2.INTER_CUBIC)
             cropped = cv2.resize(cropped, (gt.shape[1], gt.shape[0]), interpolation=cv2.INTER_CUBIC)
