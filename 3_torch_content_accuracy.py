@@ -7,6 +7,7 @@ import os
 from depth_anything_v2.util import transform
 from enum import Enum
 from pathlib import Path
+from sklearn.linear_model import RANSACRegressor
 
 #=============================================================================================================
 
@@ -103,12 +104,14 @@ def analyzeAndPrepVis(rgb, mask, ref, pred, mode = "color", normalizeError=True)
         gray = cv2.cvtColor(rgb, cv2.COLOR_BGR2GRAY)
         return cv2.hconcat([gray, ref, pred, err])
 
+    mask = mask.astype(np.uint8) * 255
+    mask = cv2.cvtColor(mask, cv2.COLOR_GRAY2BGR)
     ref = cv2.cvtColor(ref, cv2.COLOR_GRAY2BGR)
     pred = cv2.cvtColor(pred, cv2.COLOR_GRAY2BGR)
     err = cv2.cvtColor(err, cv2.COLOR_GRAY2BGR)
     err = cv2.applyColorMap(err, cv2.COLORMAP_JET)
 
-    return cv2.hconcat([rgb, ref, pred, err])
+    return cv2.hconcat([rgb, mask, ref, pred, err])
 
 #=============================================================================================================
 
@@ -206,6 +209,31 @@ def estimateParameters(pred, gt, mode, mask=None):
 
 #=============================================================================================================
 
+def estimateParametersRANSAC(pred, gt, mask=None):
+
+    if mask is None:
+        mask = (gt > 0) & np.isfinite(gt) & np.isfinite(pred)
+
+    if not mask.any():
+        raise ValueError("No valid pixels in mask for scale/shift fitting")
+
+    x = pred[mask].ravel().reshape(-1, 1)
+    y = gt[mask].ravel()
+
+    ransac = RANSACRegressor()
+    ransac.fit(x, y)
+
+    scale = float(ransac.estimator_.coef_[0])
+    shift = float(ransac.estimator_.intercept_)
+
+    inliers = ransac.inlier_mask_
+    m = np.zeros_like(mask)
+    m[mask] = inliers
+
+    return scale, shift, m
+
+#=============================================================================================================
+
 if __name__ == '__main__':
 
     #--------------------- load the torch model
@@ -265,13 +293,14 @@ if __name__ == '__main__':
             cropped = cv2.resize(cropped, (gt.shape[1], gt.shape[0]), interpolation=cv2.INTER_CUBIC)
 
         pred = normalize(pred)
-        scale, shift, mask = estimateParameters(pred, gt, mode=FittingMode.SolveForScaleAndShift)     
+        scale, shift, mask = estimateParametersRANSAC(pred, gt) 
+        # scale, shift, mask = estimateParameters(pred, gt, mode=FittingMode.SolveForScaleAndShift)    
         pred = scale * pred + shift
 
         print("Scale:", fp(scale), ", Shift:", fp(shift), '\n')
 
         visualRes = analyzeAndPrepVis(cropped, mask, gt, pred, mode="color", normalizeError=False)
-        visualRes = cv2.resize(visualRes, (visualRes.shape[1] * 3, visualRes.shape[0] * 3), interpolation=cv2.INTER_CUBIC)
+        visualRes = cv2.resize(visualRes, None, fx=2.5, fy=2.5, interpolation=cv2.INTER_CUBIC)
         displayImage("visualRes", visualRes)
 
 
