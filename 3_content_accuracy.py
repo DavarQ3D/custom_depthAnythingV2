@@ -210,7 +210,7 @@ def estimateParameters(pred, gt, mode, mask=None):
 
 #=============================================================================================================
 
-def estimateParametersRANSAC(pred, gt, mask=None):
+def estimateParametersRANSAC(pred, gt, seed, mask=None):
 
     if mask is None:
         mask = (gt > 0) & np.isfinite(gt) & np.isfinite(pred)
@@ -221,7 +221,7 @@ def estimateParametersRANSAC(pred, gt, mask=None):
     x = pred[mask].ravel().reshape(-1, 1)
     y = gt[mask].ravel()
 
-    ransac = RANSACRegressor(random_state=3)
+    ransac = RANSACRegressor(random_state=seed)
     ransac.fit(x, y)
 
     scale = float(ransac.estimator_.coef_[0])
@@ -244,6 +244,7 @@ if __name__ == '__main__':
     smallInference = False
     useCoreML = False
     robustEstimation = True
+    seed = 3
 
     #--------------------- load the torch model
     torch_model = loadTorchModel(f'checkpoints/depth_anything_v2_{encoder}.pth', encoder)
@@ -305,7 +306,7 @@ if __name__ == '__main__':
             cropped = cv2.resize(cropped, (gt.shape[1], gt.shape[0]), interpolation=cv2.INTER_CUBIC)
 
         pred = normalize(pred)
-        scale, shift, mask = estimateParametersRANSAC(pred, gt) if robustEstimation else estimateParameters(pred, gt, mode=FittingMode.SolveForScaleAndShift)
+        scale, shift, mask = estimateParametersRANSAC(pred, gt, seed) if robustEstimation else estimateParameters(pred, gt, mode=FittingMode.SolveForScaleAndShift)
         pred = scale * pred + shift
 
         print("Scale:", fp(scale), ", Shift:", fp(shift), '\n')
