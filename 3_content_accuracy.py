@@ -157,7 +157,7 @@ def ensure_multiple_of(x, multiple_of=14):
 
 #=============================================================================================================
 
-def checkIfSynced(rgb, depth):
+def overlayInputs(rgb, depth):
     rgb = cv2.resize(rgb, (depth.shape[1], depth.shape[0]), interpolation=cv2.INTER_CUBIC)
     gray = cv2.cvtColor(rgb, cv2.COLOR_BGR2GRAY)
     gray = normalize(gray)
@@ -254,6 +254,7 @@ if __name__ == '__main__':
     #------------------ inference loop
     #------------------------------------------------------------------
 
+    checkIfSynced = False
     smallInference = False
     useCoreML = False
     
@@ -267,11 +268,14 @@ if __name__ == '__main__':
         raw_image = cv2.imread(rgbPath)
         raw_image = cv2.rotate(raw_image, cv2.ROTATE_90_CLOCKWISE)
 
-        gtPath = lidar_path + f"DepthValues_{idx+1:04d}.txt"
+        index = 10 if checkIfSynced else idx + 1
+        gtPath = lidar_path + f"DepthValues_{index:04d}.txt"
         gt = loadMatrixFromFile(gtPath)
         gt = cv2.rotate(gt, cv2.ROTATE_90_CLOCKWISE)
 
-        # checkIfSynced(raw_image, gt)
+        if checkIfSynced:
+            overlayInputs(raw_image, gt)
+            continue
 
         gt = 1 / gt + 1e-8                                           # convert depth to disparity (inverse depth)
         gt = normalize(gt)
