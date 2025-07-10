@@ -245,6 +245,7 @@ if __name__ == '__main__':
     useCoreML = False
     robustEstimation = True
     seed = 3
+    normalizeVisualError = False
 
     #--------------------- load the torch model
     torch_model = loadTorchModel(f'checkpoints/depth_anything_v2_{encoder}.pth', encoder)
@@ -272,8 +273,9 @@ if __name__ == '__main__':
         raw_image = cv2.imread(rgbPath)
         raw_image = cv2.rotate(raw_image, cv2.ROTATE_90_CLOCKWISE)
 
-        index = 10 if checkIfSynced else idx + 1
-        gtPath = lidar_path + f"DepthValues_{index:04d}.txt"
+        index = 9 if checkIfSynced else idx + 1
+        prefix = "" if batch == 1 else "ARKit_"
+        gtPath = lidar_path + f"{prefix}DepthValues_{index:04d}.txt" 
         gt = loadMatrixFromFile(gtPath)
         gt = cv2.rotate(gt, cv2.ROTATE_90_CLOCKWISE)
 
@@ -311,7 +313,7 @@ if __name__ == '__main__':
 
         print("Scale:", fp(scale), ", Shift:", fp(shift), '\n')
 
-        visualRes = analyzeAndPrepVis(cropped, mask, gt, pred, mode="color", normalizeError=False)
+        visualRes = analyzeAndPrepVis(cropped, mask, gt, pred, mode="color", normalizeError=normalizeVisualError)
         visualRes = cv2.resize(visualRes, None, fx=2.5, fy=2.5, interpolation=cv2.INTER_CUBIC)
         displayImage("visualRes", visualRes)
 
