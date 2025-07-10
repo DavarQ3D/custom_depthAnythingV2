@@ -1,33 +1,36 @@
-import coremltools as ct
-import cv2
-import numpy as np
-from PIL import Image
-from google.protobuf.json_format import MessageToJson
+import os
+import shutil
+import re
 
-customModel = True
-model = ct.models.MLModel("./checkpoints/custom_vits_F16.mlpackage") if customModel else ct.models.MLModel("./checkpoints/DepthAnythingV2SmallF16.mlpackage")
+def extractIndex(path):
+    base = os.path.basename(path)
+    name, _ = os.path.splitext(base)
+    m = re.search(r'_(\d+)$', name)
+    if not m:
+        raise ValueError(f"Cannot extract index from filename: {path!r}")
+    return int(m.group(1))
 
-writeSpecOnDisk = False
-if writeSpecOnDisk:
-    spec = model.get_spec()
-    json_str = MessageToJson(spec)
-    with open("model_spec.json", "w") as f:
-        f.write(json_str)
-    exit()
 
-bgr = cv2.imread("data/camera/camera_0.png", cv2.IMREAD_COLOR)
-rgb = cv2.cvtColor(bgr, cv2.COLOR_BGR2RGB)
+srcPath = "/Users/3dsensing/Desktop/projects/custom_depthAnythingV2/data/iphone_pro_lidar_1"
+dstPath = "/Users/3dsensing/Desktop/projects/custom_depthAnythingV2/data/batch_1"
 
-sz = (686, 518) if customModel else (518, 392)
-rgb_resized = cv2.resize(rgb, sz, interpolation=cv2.INTER_AREA)
+files = os.listdir(srcPath)
+ordered_files = sorted(files, key=extractIndex)
 
-pil_input = Image.fromarray(rgb_resized)
-pred = model.predict({"image": pil_input})
+for i, filename in enumerate(ordered_files):
+    print("filename:", filename)
+    src_file = os.path.join(srcPath, filename)
+    dst_file = os.path.join(dstPath, f"DepthValues_{i:04d}.txt")
 
-depth = np.array(pred["depth"], dtype=np.float32)
-norm = cv2.normalize(depth, None, 0, 255, cv2.NORM_MINMAX)
-cv2.imshow("Depth", norm.astype(np.uint8))
-key = cv2.waitKey(0)
-if key == 27:  
-    cv2.destroyAllWindows()
-    exit()
+    # print("src_file:", src_file)
+    # print("dst_file:", dst_file)
+    # print()
+
+    shutil.copy(src_file, dst_file)
+
+    
+    
+
+    
+
+
