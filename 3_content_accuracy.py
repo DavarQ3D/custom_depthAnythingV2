@@ -8,6 +8,7 @@ from depth_anything_v2.util import transform
 from enum import Enum
 from pathlib import Path
 from sklearn.linear_model import RANSACRegressor
+import coremltools as ct
 
 #=============================================================================================================
 
@@ -240,6 +241,9 @@ if __name__ == '__main__':
     encoder = "vits"
     torch_model = loadTorchModel(f'checkpoints/depth_anything_v2_{encoder}.pth', encoder)
 
+    #--------------------- load coreml model
+    mlProgram = ct.models.CompiledMLModel(f"./checkpoints/custom_vits_F16_{686}_{518}.mlmodelc")
+
     #------------------ configs
     img_path = "./data/iphone_images/"
     lidar_path = "./data/iphone_pro_lidar/"
@@ -251,6 +255,7 @@ if __name__ == '__main__':
     #------------------------------------------------------------------
 
     smallInference = False
+    useCoreML = False
     
     for idx in range(numFiles):
 
@@ -285,7 +290,7 @@ if __name__ == '__main__':
             r = ensure_multiple_of(resized.shape[0], multiple_of=14)
             c = ensure_multiple_of(resized.shape[1], multiple_of=14)
             cropped, top = center_crop_or_pad(resized, r, c)
-            pred = inferFromTorch(torch_model, cropped, min(r, c)) 
+            pred = inferFromCoreml(mlProgram, cropped) if useCoreML else inferFromTorch(torch_model, cropped, min(r, c))
             gtMarg = (top * 2) / (resized.shape[0] / gt.shape[0])
             gtMarg = round(gtMarg / 2)                               # round to the nearest even number
             gt = gt[gtMarg : -gtMarg, :]

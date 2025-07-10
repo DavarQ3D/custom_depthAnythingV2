@@ -82,8 +82,8 @@ if __name__ == '__main__':
     wrapped = DepthWrapper(torch_model).eval()
 
     #==================== conversion
-    h = 518
-    w = 686 
+    h = 686
+    w = 518 
     example_input = torch.rand(1, 3, h, w)
     traced_model = torch.jit.trace(wrapped, example_input)
     traced_model = torch.jit.freeze(traced_model)  
