@@ -27,7 +27,7 @@ def loadTorchModel(modelPath, encoder):
 
 #=============================================================================================================
 
-def center_crop_or_pad(img: np.ndarray, desiredRow: int, desiredCol: int) -> np.ndarray:
+def center_crop_or_pad(img: np.ndarray, desiredRow: int, desiredCol: int, borderType = cv2.BORDER_CONSTANT) -> np.ndarray:
 
     h, w = img.shape[:2]
 
@@ -48,13 +48,13 @@ def center_crop_or_pad(img: np.ndarray, desiredRow: int, desiredCol: int) -> np.
     pad_right  = desiredCol - w - pad_left
 
     if any(p > 0 for p in (pad_top, pad_bottom, pad_left, pad_right)):
-        img = cv2.copyMakeBorder(
-            img,
-            pad_top, pad_bottom, pad_left, pad_right,
-            # borderType=cv2.BORDER_REFLECT_101,
-            borderType=cv2.BORDER_CONSTANT,
-            value = 0
-        )
+
+        if borderType == cv2.BORDER_CONSTANT:
+            img = cv2.copyMakeBorder(img, pad_top, pad_bottom, pad_left, pad_right, borderType=cv2.BORDER_CONSTANT, value=0)
+        elif borderType == cv2.BORDER_REFLECT_101:
+            img = cv2.copyMakeBorder(img, pad_top, pad_bottom, pad_left, pad_right, borderType=cv2.BORDER_REFLECT_101)
+        else:
+            raise ValueError(f"Unsupported border type: {borderType}")
 
     return img, pad_left
 
@@ -246,6 +246,7 @@ if __name__ == '__main__':
     robustEstimation = True
     seed = 3
     normalizeVisualError = False
+    borderType = cv2.BORDER_CONSTANT
 
     #--------------------- load the torch model
     torch_model = loadTorchModel(f'checkpoints/depth_anything_v2_{encoder}.pth', encoder)
@@ -288,7 +289,7 @@ if __name__ == '__main__':
         resized = cv2.resize(raw_image, (int(raw_image.shape[1] * sc), int(raw_image.shape[0] * sc)), interpolation=cv2.INTER_CUBIC)
         r = 518
         c = 518
-        cropped, left = center_crop_or_pad(resized, r, c)
+        cropped, left = center_crop_or_pad(resized, r, c, borderType)
         pred = inferFromCoreml(mlProgram, cropped) if useCoreML else inferFromTorch(torch_model, cropped, min(r, c))
         pred = pred[:, left: left + resized.shape[1]]
         pred = cv2.resize(pred, (gt.shape[1], gt.shape[0]), interpolation=cv2.INTER_CUBIC)
