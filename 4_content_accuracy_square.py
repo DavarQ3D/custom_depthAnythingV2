@@ -51,12 +51,12 @@ def center_crop_or_pad(img: np.ndarray, desiredRow: int, desiredCol: int) -> np.
         img = cv2.copyMakeBorder(
             img,
             pad_top, pad_bottom, pad_left, pad_right,
-            borderType=cv2.BORDER_REFLECT_101,
-            # borderType=cv2.BORDER_CONSTANT,
-            # value = 0
+            # borderType=cv2.BORDER_REFLECT_101,
+            borderType=cv2.BORDER_CONSTANT,
+            value = 0
         )
 
-    return img, top
+    return img, pad_left
 
 #=============================================================================================================
 
@@ -251,7 +251,7 @@ if __name__ == '__main__':
     torch_model = loadTorchModel(f'checkpoints/depth_anything_v2_{encoder}.pth', encoder)
 
     #--------------------- load coreml model
-    mlProgram = ct.models.CompiledMLModel(f"./checkpoints/custom_vits_F16_{686}_{518}.mlmodelc")
+    mlProgram = ct.models.CompiledMLModel(f"./checkpoints/custom_vits_F16_{518}_{518}.mlmodelc")
 
     #------------------ configs
     inputPath = f"./data/batch_{batch}/"
@@ -284,16 +284,15 @@ if __name__ == '__main__':
         gt = 1 / gt + 1e-8                                           # convert depth to disparity (inverse depth)
         gt = normalize(gt)
 
-        sc = 518 / min(raw_image.shape[:2])
+        sc = 518 / max(raw_image.shape[:2])
         resized = cv2.resize(raw_image, (int(raw_image.shape[1] * sc), int(raw_image.shape[0] * sc)), interpolation=cv2.INTER_CUBIC)
-        r = ensure_multiple_of(resized.shape[0], multiple_of=14)
-        c = ensure_multiple_of(resized.shape[1], multiple_of=14)
-        cropped, top = center_crop_or_pad(resized, r, c)
+        r = 518
+        c = 518
+        cropped, left = center_crop_or_pad(resized, r, c)
         pred = inferFromCoreml(mlProgram, cropped) if useCoreML else inferFromTorch(torch_model, cropped, min(r, c))
-        gtMarg = (top * 2) / (resized.shape[0] / gt.shape[0])
-        gtMarg = round(gtMarg / 2)                               # round to the nearest even number
-        gt = gt[gtMarg : -gtMarg, :]
+        pred = pred[:, left: left + resized.shape[1]]
         pred = cv2.resize(pred, (gt.shape[1], gt.shape[0]), interpolation=cv2.INTER_CUBIC)
+        cropped = cropped[:, left: left + resized.shape[1], :]
         cropped = cv2.resize(cropped, (gt.shape[1], gt.shape[0]), interpolation=cv2.INTER_CUBIC)
 
         pred = normalize(pred)
