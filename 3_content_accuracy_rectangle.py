@@ -213,7 +213,7 @@ def estimateParameters(pred, gt, mode, mask=None):
 def estimateParametersRANSAC(pred, gt, seed, mask=None):
 
     if mask is None:
-        mask = (gt > 0) & np.isfinite(gt) & np.isfinite(pred)
+        mask = (gt > 0) & (pred > 0) & np.isfinite(gt) & np.isfinite(pred)
 
     if not mask.any():
         raise ValueError("No valid pixels in mask for scale/shift fitting")
@@ -235,6 +235,58 @@ def estimateParametersRANSAC(pred, gt, seed, mask=None):
 
 #=============================================================================================================
 
+def weightedLeastSquared(pred, gt, mask=None, inlier_bottom=0.02, outlier_cap=0.2, num_iters=10):
+
+    if mask is None:
+        mask = (gt > 0) & (pred > 0) & np.isfinite(gt) & np.isfinite(pred)
+
+    if not mask.any():
+        raise ValueError("No valid pixels")
+
+    x = pred[mask].ravel()  
+    y = gt[mask].ravel()    
+
+    scale, shift = 1.0, 0.0
+    for _ in range(num_iters):
+
+        fit = scale * x + shift
+        residuals = y - fit
+        abs_res = np.abs(residuals)
+
+        valid = abs_res <= outlier_cap    # hard skip outliers mask
+        if not valid.any():
+            break  
+
+        abs_res = abs_res[valid]
+        x_valid = x[valid]
+        residuals = residuals[valid]
+
+        weights = np.ones_like(abs_res)
+        moderate = (abs_res > inlier_bottom) & (abs_res <= outlier_cap)        # moderate residuals mask in which weights aren't 1
+        weights[moderate] = 1 - (abs_res[moderate] - inlier_bottom) / (outlier_cap - inlier_bottom)
+
+        jtj = np.zeros((2, 2))
+        jty = np.zeros(2)
+        wx = weights * x_valid
+        wr = weights * residuals
+        jtj[0, 0] = np.dot(wx, x_valid)
+        jtj[0, 1] = jtj[1, 0] = np.sum(wx)
+        jtj[1, 1] = np.sum(weights)
+        jty[0] = np.dot(wr, x_valid)
+        jty[1] = np.sum(wr)
+
+        update = np.linalg.solve(jtj, jty)
+        scale += update[0]
+        shift += update[1]
+
+    final_fit = scale * pred + shift
+    final_res = np.abs(gt - final_fit)
+    inlier_mask = (final_res <= outlier_cap) & mask
+
+    return scale, shift, inlier_mask
+
+#=============================================================================================================
+
 if __name__ == '__main__':
 
     #--------------------- settings
@@ -243,7 +295,7 @@ if __name__ == '__main__':
     encoder = "vits"
     smallInference = False
     useCoreML = False
-    robustEstimation = True
+    weightedLsq = True
     seed = 3
     normalizeVisualError = False
 
@@ -306,7 +358,7 @@ if __name__ == '__main__':
             cropped = cv2.resize(cropped, (gt.shape[1], gt.shape[0]), interpolation=cv2.INTER_CUBIC)
 
         pred = normalize(pred)
-        scale, shift, mask = estimateParametersRANSAC(pred, gt, seed) if robustEstimation else estimateParameters(pred, gt, mode=FittingMode.SolveForScaleAndShift)
+        scale, shift, mask = weightedLeastSquared(pred, gt, inlier_bottom=0.01, outlier_cap=0.07) if weightedLsq else estimateParametersRANSAC(pred, gt, seed) 
         pred = scale * pred + shift
 
         print("Scale:", fp(scale), ", Shift:", fp(shift), '\n')
