@@ -165,7 +165,7 @@ def estimateParametersRANSAC(pred, gt, seed, mask=None):
 
 #=============================================================================================================
 
-def weightedLeastSquared(pred, gt, mask=None, inlier_bottom=0.02, outlier_cap=0.2, num_iters=5):
+def weightedLeastSquared(pred, gt, mask=None, inlier_bottom=0.02, outlier_cap=0.2, num_iters=5, fit_shift=True):
 
     print("inlier_bottom =", fp(inlier_bottom, 2), ", outlier_cap =", fp(outlier_cap, 2), '\n')
 
@@ -199,19 +199,25 @@ def weightedLeastSquared(pred, gt, mask=None, inlier_bottom=0.02, outlier_cap=0.
         moderate = (abs_res > inlier_bottom) & (abs_res <= outlier_cap)        # moderate residuals mask in which weights aren't 1
         weights[moderate] = 1 - (abs_res[moderate] - inlier_bottom) / (outlier_cap - inlier_bottom)
 
-        jtj = np.zeros((2, 2))
-        jty = np.zeros(2)
         wx = weights * x_valid
         wr = weights * residuals
-        jtj[0, 0] = np.dot(wx, x_valid)
-        jtj[0, 1] = jtj[1, 0] = np.sum(wx)
-        jtj[1, 1] = np.sum(weights)
-        jty[0] = np.dot(wr, x_valid)
-        jty[1] = np.sum(wr)
 
-        update = np.linalg.solve(jtj, jty)
-        scale += update[0]
-        shift += update[1]
+        if fit_shift:
+            jtj = np.zeros((2, 2))
+            jty = np.zeros(2)
+            jtj[0, 0] = np.dot(wx, x_valid)
+            jtj[0, 1] = jtj[1, 0] = np.sum(wx)
+            jtj[1, 1] = np.sum(weights)
+            jty[0] = np.dot(wr, x_valid)
+            jty[1] = np.sum(wr)
+            update = np.linalg.solve(jtj, jty)
+            scale += update[0]
+            shift += update[1]
+        else:
+            jtj_scalar = np.dot(wx, x_valid)
+            jty_scalar = np.dot(wr, x_valid)
+            update = 0.0 if jtj_scalar == 0 else jty_scalar / jtj_scalar
+            scale += update
 
     final_fit = scale * pred + shift
     final_res = np.abs(gt - final_fit)
