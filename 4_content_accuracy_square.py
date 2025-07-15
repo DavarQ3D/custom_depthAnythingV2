@@ -71,12 +71,12 @@ if __name__ == '__main__':
         print(f'========= sample --> {idx} =========')
         print("=========================================================", '\n')
 
-        rgbPath = inputPath + f"RGB_{idx:04d}.JPG"
+        rgbPath = inputPath + f"RGB_{idx:04d}.png"
         raw_image = cv2.imread(rgbPath)
         raw_image = cv2.rotate(raw_image, cv2.ROTATE_90_CLOCKWISE)
 
         index = 9 if checkIfSynced else idx
-        gtPath = inputPath + f"DepthValues_{index:04d}.txt" 
+        gtPath = inputPath + f"ARKit_DepthValues_{index:04d}.txt" 
         gt = loadMatrixFromFile(gtPath)
         gt = cv2.rotate(gt, cv2.ROTATE_90_CLOCKWISE)
 
