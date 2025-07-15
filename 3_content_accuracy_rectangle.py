@@ -89,7 +89,7 @@ def analyzeAndPrepVis(rgb, mask, ref, pred, mode = "color", normalizeError=True)
     
     err = np.abs(ref - pred)
     valid = err[mask]
-    print("err ---> min:", fp(valid.min()), ", max:", fp(valid.max()), "--> RMSE:", fp(np.sqrt((valid**2).mean()), 6))
+    print("valid pixels RMSE =", fp(np.sqrt((valid**2).mean()), 6))
 
     ref = normalize(ref)
     pred = normalize(pred)
@@ -235,7 +235,9 @@ def estimateParametersRANSAC(pred, gt, seed, mask=None):
 
 #=============================================================================================================
 
-def weightedLeastSquared(pred, gt, mask=None, inlier_bottom=0.02, outlier_cap=0.2, num_iters=10):
+def weightedLeastSquared(pred, gt, mask=None, inlier_bottom=0.02, outlier_cap=0.2, num_iters=5):
+
+    print("inlier_bottom =", fp(inlier_bottom, 2), ", outlier_cap =", fp(outlier_cap, 2), '\n')
 
     if mask is None:
         mask = (gt > 0) & (pred > 0) & np.isfinite(gt) & np.isfinite(pred)
@@ -247,11 +249,13 @@ def weightedLeastSquared(pred, gt, mask=None, inlier_bottom=0.02, outlier_cap=0.
     y = gt[mask].ravel()    
 
     scale, shift = 1.0, 0.0
-    for _ in range(num_iters):
+    for iter in range(num_iters):
 
         fit = scale * x + shift
         residuals = y - fit
         abs_res = np.abs(residuals)
+
+        print("iter =", iter, "-> scale =", fp(scale), ", shift =", fp(shift), ", all pixels err -> max:", fp(abs_res.max()), ", mean:", fp(abs_res.mean()))
 
         valid = abs_res <= outlier_cap    # hard skip outliers mask
         if not valid.any():
@@ -358,10 +362,10 @@ if __name__ == '__main__':
             cropped = cv2.resize(cropped, (gt.shape[1], gt.shape[0]), interpolation=cv2.INTER_CUBIC)
 
         pred = normalize(pred)
-        scale, shift, mask = weightedLeastSquared(pred, gt, inlier_bottom=0.01, outlier_cap=0.07) if weightedLsq else estimateParametersRANSAC(pred, gt, seed) 
+        scale, shift, mask = weightedLeastSquared(pred, gt, inlier_bottom=0.02, outlier_cap=0.1) if weightedLsq else estimateParametersRANSAC(pred, gt, seed) 
         pred = scale * pred + shift
 
-        print("Scale:", fp(scale), ", Shift:", fp(shift), '\n')
+        print("\nScale:", fp(scale), ", Shift:", fp(shift), '\n')
 
         visualRes = analyzeAndPrepVis(cropped, mask, gt, pred, mode="color", normalizeError=normalizeVisualError)
         visualRes = cv2.resize(visualRes, None, fx=2.5, fy=2.5, interpolation=cv2.INTER_CUBIC)
