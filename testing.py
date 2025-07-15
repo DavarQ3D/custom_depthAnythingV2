@@ -11,22 +11,28 @@ def extractIndex(path):
     return int(m.group(1))
 
 
-srcPath = "/Users/3dsensing/Desktop/projects/custom_depthAnythingV2/data/iphone_pro_lidar_1"
-dstPath = "/Users/3dsensing/Desktop/projects/custom_depthAnythingV2/data/batch_1"
+numFiles = 8
+srcPath = "/Users/3dsensing/Desktop/Archive 5/"
+dstPath = "/Users/3dsensing/Desktop/projects/custom_depthAnythingV2/data/batch_6/"
 
-files = os.listdir(srcPath)
-ordered_files = sorted(files, key=extractIndex)
+for i in range(numFiles):
 
-for i, filename in enumerate(ordered_files):
-    print("filename:", filename)
-    src_file = os.path.join(srcPath, filename)
-    dst_file = os.path.join(dstPath, f"DepthValues_{i:04d}.txt")
+    depthSrc = srcPath + f"ARKit_DepthValues_{i+1:04d}.txt"
+    depthDst = dstPath + f"ARKit_DepthValues_{i:04d}.txt"
 
-    # print("src_file:", src_file)
-    # print("dst_file:", dst_file)
-    # print()
+    rgbSrc = srcPath + f"RGB_{i+1:04d}.png"
+    rgbDst = dstPath + f"RGB_{i:04d}.png"
 
-    shutil.copy(src_file, dst_file)
+    if not os.path.exists(depthSrc): 
+        raise FileNotFoundError(f"Depth source path not found: {depthSrc}")
+    if not os.path.exists(rgbSrc):
+        raise FileNotFoundError(f"RGB source path not found: {rgbSrc}")
+    if not os.path.exists(dstPath):
+        os.makedirs(dstPath)
+
+    shutil.copy(depthSrc, depthDst)
+    shutil.copy(rgbSrc, rgbDst)
+    
 
     
     
