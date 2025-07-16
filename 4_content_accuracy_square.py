@@ -85,7 +85,7 @@ if __name__ == '__main__':
             continue
 
         gt = 1 / gt + 1e-8                                           # convert depth to disparity (inverse depth)
-        # gt = normalize(gt)
+        gt = normalize(gt)
 
         sc = 518 / max(raw_image.shape[:2])
         resized = cv2.resize(raw_image, (int(raw_image.shape[1] * sc), int(raw_image.shape[0] * sc)), interpolation=cv2.INTER_CUBIC)
@@ -98,7 +98,7 @@ if __name__ == '__main__':
         cropped = cropped[:, left: left + resized.shape[1], :]
         cropped = cv2.resize(cropped, (gt.shape[1], gt.shape[0]), interpolation=cv2.INTER_CUBIC)
 
-        # pred = normalize(pred)
+        pred = normalize(pred)
         scale, shift, mask = weightedLeastSquared(pred, gt, inlier_bottom=0.02, outlier_cap=0.1) if weightedLsq else estimateParametersRANSAC(pred, gt, seed) 
         pred = scale * pred + shift
 
