@@ -140,7 +140,7 @@ def overlayInputs(rgb, depth):
 
 #=============================================================================================================
 
-def estimateParametersRANSAC(pred, gt, seed, mask=None):
+def estimateParametersRANSAC(pred, gt, seed = 3, mask=None):
 
     if mask is None:
         mask = (gt > 0) & (pred > 0) & np.isfinite(gt) & np.isfinite(pred)
@@ -162,6 +162,41 @@ def estimateParametersRANSAC(pred, gt, seed, mask=None):
     m[mask] = inliers
 
     return scale, shift, m
+
+#=============================================================================================================
+
+def center_crop_or_pad(img: np.ndarray, desiredRow: int, desiredCol: int, borderType = cv2.BORDER_CONSTANT) -> np.ndarray:
+
+    h, w = img.shape[:2]
+
+    # centre crop if the dimension is too large 
+    top = None
+    left = None
+    if h > desiredRow:
+        top = (h - desiredRow) // 2
+        img = img[top : top + desiredRow, :, :]
+        h = desiredRow
+    if w > desiredCol:
+        left = (w - desiredCol) // 2
+        img = img[:, left : left + desiredCol, :]
+        w = desiredCol
+
+    # symmetric padding if the dimension is too small 
+    pad_top    = (desiredRow - h) // 2
+    pad_bottom = desiredRow - h - pad_top
+    pad_left   = (desiredCol - w) // 2
+    pad_right  = desiredCol - w - pad_left
+
+    if any(p > 0 for p in (pad_top, pad_bottom, pad_left, pad_right)):
+
+        if borderType == cv2.BORDER_CONSTANT:
+            img = cv2.copyMakeBorder(img, pad_top, pad_bottom, pad_left, pad_right, borderType=cv2.BORDER_CONSTANT, value=0)
+        elif borderType == cv2.BORDER_REFLECT_101:
+            img = cv2.copyMakeBorder(img, pad_top, pad_bottom, pad_left, pad_right, borderType=cv2.BORDER_REFLECT_101)
+        else:
+            raise ValueError(f"Unsupported border type: {borderType}")
+
+    return img, top, pad_left
 
 #=============================================================================================================
 
