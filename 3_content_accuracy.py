@@ -43,7 +43,7 @@ if __name__ == '__main__':
         raw_image = cv2.imread(rgbPath)
         raw_image = cv2.rotate(raw_image, cv2.ROTATE_90_CLOCKWISE)
 
-        index = 9 if checkIfSynced else idx
+        index = 4 if checkIfSynced else idx
         gtPath = inputPath + f"ARKit_DepthValues_{index:04d}.txt" 
         gt = loadMatrixFromFile(gtPath)
         gt = cv2.rotate(gt, cv2.ROTATE_90_CLOCKWISE)
