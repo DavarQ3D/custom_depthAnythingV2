@@ -10,34 +10,44 @@ if __name__ == '__main__':
     os.makedirs(outdir, exist_ok=True)
 
     #--------------------- settings
-    batch = 1
+    inputPath = f"./data/iphone/"
     checkIfSynced = False
+
     encoder = "vits"
     useCoreML = False
+    
     weightedLsq = True
-    fitShift = True
+    inlier_bottom = 0.02 
+    outlier_cap = 0.1 
+    num_iters = 10 
+    fit_shift = True 
+    verbose = False
+    
     makeSquareInput = True
     borderType = cv2.BORDER_CONSTANT
+    
     normalizeVisualError = False
+    showVisuals = False
 
-    #--------------------- load the torch model
-    torch_model = loadTorchModel(f'checkpoints/depth_anything_v2_{encoder}.pth', encoder)
-
-    #--------------------- load coreml model
-    mlProgram = ct.models.CompiledMLModel(f"./checkpoints/custom_vits_F16_{686}_{518}.mlmodelc")
-
-    #------------------ configs
-    inputPath = f"./data/batch_{batch}/"
-    numFiles = len(os.listdir(inputPath)) // 2
+    #--------------------- load models
+    torch_model = loadTorchModel(f'checkpoints/depth_anything_v2_{encoder}.pth', encoder)             # torch
+    mlProgram = ct.models.CompiledMLModel(f"./checkpoints/custom_vits_F16_{686}_{518}.mlmodelc")      # coreml
 
     #------------------ inference loop
     #------------------------------------------------------------------
+    numFiles = len(os.listdir(inputPath)) // 2
+    totalError = 0.0
+    meanErr = 0.0
+    sampleWithLowestError = 0
+    samplewithHighestError = 0
+    minRMSE = float('inf')
+    maxRMSE = float('-inf')
     
     for idx in range(numFiles):
 
-        print('\n'"=========================================================")
-        print(f'========= sample --> {idx} =========')
-        print("=========================================================", '\n')
+        print('\n'"========================================")
+        print(f'============= sample --> {idx} =============')
+        print("========================================", '\n')
 
         rgbPath = inputPath + f"RGB_{idx:04d}.png"
         raw_image = cv2.imread(rgbPath)
@@ -80,14 +90,34 @@ if __name__ == '__main__':
             cropped = cv2.resize(cropped, (gt.shape[1], gt.shape[0]), interpolation=cv2.INTER_CUBIC)
 
         pred = normalize(pred)
-        scale, shift, mask = weightedLeastSquared(pred, gt, inlier_bottom=0.02, outlier_cap=0.1, fit_shift=fitShift) if weightedLsq else estimateParametersRANSAC(pred, gt) 
+
+        if weightedLsq: 
+            scale, shift, mask = weightedLeastSquared(pred, gt, inlier_bottom, outlier_cap, num_iters, fit_shift, verbose)
+        else: 
+            scale, shift, mask = estimateParametersRANSAC(pred, gt) 
+
         pred = scale * pred + shift
 
-        print("\nScale:", fp(scale), ", Shift:", fp(shift), '\n')
+        print("Scale:", fp(scale), ", Shift:", fp(shift), '\n')
 
-        visualRes = analyzeAndPrepVis(cropped, mask, gt, pred, mode="color", normalizeError=normalizeVisualError)
-        visualRes = cv2.resize(visualRes, None, fx=2.5, fy=2.5, interpolation=cv2.INTER_CUBIC)
-        displayImage("visualRes", visualRes)
+        visualRes, rmse = analyzeAndPrepVis(cropped, mask, gt, pred, mode="color", normalizeError=normalizeVisualError)
+
+        if rmse < minRMSE:
+            minRMSE = rmse
+            sampleWithLowestError = idx
+        if rmse > maxRMSE:
+            maxRMSE = rmse
+            samplewithHighestError = idx
+
+        totalError += rmse
+        meanErr = totalError / (idx + 1)
+        print("\nmean across all images so far --> RMSE =", fp(meanErr, 6))
+        print("\nimage with lowest error:", sampleWithLowestError, "--> RMSE =", fp(minRMSE, 6))
+        print("image with highest error:", samplewithHighestError, "--> RMSE =", fp(maxRMSE, 6))
+
+        if showVisuals:
+            visualRes = cv2.resize(visualRes, None, fx=2.5, fy=2.5, interpolation=cv2.INTER_CUBIC)
+            displayImage("visualRes", visualRes)
 
 
         

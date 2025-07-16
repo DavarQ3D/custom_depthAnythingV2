@@ -53,7 +53,8 @@ def analyzeAndPrepVis(rgb, mask, ref, pred, mode = "color", normalizeError=True)
     
     err = np.abs(ref - pred)
     valid = err[mask]
-    print("valid pixels RMSE =", fp(np.sqrt((valid**2).mean()), 6))
+    rmse = np.sqrt((valid**2).mean())
+    print("valid pixels RMSE =", fp(rmse, 6))
 
     ref = normalize(ref)
     pred = normalize(pred)
@@ -76,7 +77,7 @@ def analyzeAndPrepVis(rgb, mask, ref, pred, mode = "color", normalizeError=True)
     err = cv2.cvtColor(err, cv2.COLOR_GRAY2BGR)
     err = cv2.applyColorMap(err, cv2.COLORMAP_JET)
 
-    return cv2.hconcat([rgb, mask, ref, pred, err])
+    return cv2.hconcat([rgb, mask, ref, pred, err]), rmse
 
 #=============================================================================================================
 
@@ -200,9 +201,10 @@ def center_crop_or_pad(img: np.ndarray, desiredRow: int, desiredCol: int, border
 
 #=============================================================================================================
 
-def weightedLeastSquared(pred, gt, mask=None, inlier_bottom=0.02, outlier_cap=0.2, num_iters=5, fit_shift=True):
+def weightedLeastSquared(pred, gt, inlier_bottom=0.02, outlier_cap=0.2, num_iters=5, fit_shift=True, verbose=True, mask=None):
 
-    print("inlier_bottom =", fp(inlier_bottom, 2), ", outlier_cap =", fp(outlier_cap, 2), '\n')
+    if verbose:
+        print("inlier_bottom =", fp(inlier_bottom, 2), ", outlier_cap =", fp(outlier_cap, 2), '\n')
 
     if mask is None:
         mask = (gt > 0) & (pred > 0) & np.isfinite(gt) & np.isfinite(pred)
@@ -220,7 +222,8 @@ def weightedLeastSquared(pred, gt, mask=None, inlier_bottom=0.02, outlier_cap=0.
         residuals = y - fit
         abs_res = np.abs(residuals)
 
-        print("iter =", iter, "-> scale =", fp(scale), ", shift =", fp(shift), ", all pixels err -> max:", fp(abs_res.max()), ", mean:", fp(abs_res.mean()))
+        if verbose:
+            print("iter =", iter, "-> scale =", fp(scale), ", shift =", fp(shift), ", all pixels err -> max:", fp(abs_res.max()), ", mean:", fp(abs_res.mean()))
 
         valid = abs_res <= outlier_cap    # hard skip outliers mask
         if not valid.any():
@@ -257,5 +260,8 @@ def weightedLeastSquared(pred, gt, mask=None, inlier_bottom=0.02, outlier_cap=0.
     final_fit = scale * pred + shift
     final_res = np.abs(gt - final_fit)
     inlier_mask = (final_res <= outlier_cap) & mask
+
+    if verbose:
+        print()
 
     return scale, shift, inlier_mask
