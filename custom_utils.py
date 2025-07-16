@@ -215,7 +215,8 @@ def weightedLeastSquared(pred, gt, inlier_bottom=0.02, outlier_cap=0.2, num_iter
     x = pred[mask].ravel()  
     y = gt[mask].ravel()    
 
-    scale, shift = 1.0, 0.0
+    scale = 1.0
+    shift = 0.0
     for iter in range(num_iters):
 
         fit = scale * x + shift
