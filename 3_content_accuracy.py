@@ -30,8 +30,9 @@ if __name__ == '__main__':
     showVisuals = False
 
     #--------------------- load models
-    torch_model = loadTorchModel(f'checkpoints/depth_anything_v2_{encoder}.pth', encoder)             # torch
-    mlProgram = ct.models.CompiledMLModel(f"./checkpoints/custom_vits_F16_{686}_{518}.mlmodelc")      # coreml
+    torch_model = loadTorchModel(f'checkpoints/depth_anything_v2_{encoder}.pth', encoder)              # torch
+    rows = 518 if makeSquareInput else 686
+    mlProgram = ct.models.CompiledMLModel(f"./checkpoints/custom_vits_F16_{rows}_{518}.mlmodelc")      # coreml
 
     #------------------ inference loop
     #------------------------------------------------------------------
