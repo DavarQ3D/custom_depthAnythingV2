@@ -80,7 +80,7 @@ if __name__ == '__main__':
             cropped = cv2.resize(cropped, (gt.shape[1], gt.shape[0]), interpolation=cv2.INTER_CUBIC)
 
         pred = normalize(pred)
-        scale, shift, mask = weightedLeastSquared(pred, gt, inlier_bottom=0.02, outlier_cap=0.1, fit_shift=fitShift) if weightedLsq else estimateParametersRANSAC(pred, gt, seed) 
+        scale, shift, mask = weightedLeastSquared(pred, gt, inlier_bottom=0.02, outlier_cap=0.1, fit_shift=fitShift) if weightedLsq else estimateParametersRANSAC(pred, gt) 
         pred = scale * pred + shift
 
         print("\nScale:", fp(scale), ", Shift:", fp(shift), '\n')
