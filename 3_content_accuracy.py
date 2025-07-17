@@ -17,6 +17,7 @@ if __name__ == '__main__':
     #--------------------- settings
     inputPath = f"./data/iphone/"
     checkIfSynced = False
+    sampleToTest = 6
 
     encoder = "vits"
     useCoreML = False and ct is not None
@@ -32,7 +33,7 @@ if __name__ == '__main__':
     borderType = cv2.BORDER_CONSTANT
     
     normalizeVisualError = False
-    showVisuals = False
+    showVisuals = True
 
     #--------------------- load models
     torch_model = loadTorchModel(f'checkpoints/depth_anything_v2_{encoder}.pth', encoder)              # torch
@@ -48,9 +49,13 @@ if __name__ == '__main__':
     samplewithHighestError = 0
     minRMSE = float('inf')
     maxRMSE = float('-inf')
-    
-    for idx in range(numFiles):
+    start = max(0, sampleToTest - 3) if checkIfSynced else 0
 
+    for idx in range(start, numFiles):
+
+        if checkIfSynced:
+            print("sample to test:", sampleToTest)
+            
         print('\n'"========================================")
         print(f'============= sample --> {idx} =============')
         print("========================================", '\n')
@@ -59,7 +64,7 @@ if __name__ == '__main__':
         raw_image = cv2.imread(rgbPath)
         raw_image = cv2.rotate(raw_image, cv2.ROTATE_90_CLOCKWISE)
 
-        index = 4 if checkIfSynced else idx
+        index = sampleToTest if checkIfSynced else idx
         gtPath = inputPath + f"ARKit_DepthValues_{index:04d}.txt" 
         gt = loadMatrixFromFile(gtPath)
         gt = cv2.rotate(gt, cv2.ROTATE_90_CLOCKWISE)
