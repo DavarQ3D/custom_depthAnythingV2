@@ -1,6 +1,11 @@
 import os
-import coremltools as ct
+import sys
 from custom_utils import *
+
+if sys.platform == 'darwin':
+    import coremltools as ct
+else:
+    ct = None
 
 #=============================================================================================================
 
@@ -14,7 +19,7 @@ if __name__ == '__main__':
     checkIfSynced = False
 
     encoder = "vits"
-    useCoreML = False
+    useCoreML = False and ct is not None
     
     weightedLsq = True
     inlier_bottom = 0.02 
@@ -32,7 +37,7 @@ if __name__ == '__main__':
     #--------------------- load models
     torch_model = loadTorchModel(f'checkpoints/depth_anything_v2_{encoder}.pth', encoder)              # torch
     rows = 518 if makeSquareInput else 686
-    mlProgram = ct.models.CompiledMLModel(f"./checkpoints/custom_vits_F16_{rows}_{518}.mlmodelc")      # coreml
+    mlProgram = ct.models.CompiledMLModel(f"./checkpoints/custom_vits_F16_{rows}_{518}.mlmodelc") if useCoreML else None  # coreml
 
     #------------------ inference loop
     #------------------------------------------------------------------
@@ -117,7 +122,8 @@ if __name__ == '__main__':
         print("image with highest error:", samplewithHighestError, "--> RMSE =", fp(maxRMSE, 6))
 
         if showVisuals:
-            visualRes = cv2.resize(visualRes, None, fx=2.5, fy=2.5, interpolation=cv2.INTER_CUBIC)
+            ssc = 2.5 if ct else 2
+            visualRes = cv2.resize(visualRes, None, fx=ssc, fy=ssc, interpolation=cv2.INTER_CUBIC)
             displayImage("visualRes", visualRes)
 
 
