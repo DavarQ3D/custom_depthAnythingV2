@@ -201,6 +201,16 @@ def center_crop_or_pad(img: np.ndarray, desiredRow: int, desiredCol: int, border
 
 #=============================================================================================================
 
+def robustNormalize(x):
+    t = np.median(x)
+    s = np.mean(np.abs(x - t))
+    if s == 0:
+        raise ValueError("Input array has zero variance; cannot normalize.")
+    normalized = (x - t) / s
+    return normalized
+
+#=============================================================================================================
+
 def weightedLeastSquared(pred, gt, inlier_bottom=0.02, outlier_cap=0.2, num_iters=5, fit_shift=True, verbose=True, mask=None):
 
     if verbose:
