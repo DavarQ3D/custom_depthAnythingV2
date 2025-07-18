@@ -28,6 +28,7 @@ if __name__ == '__main__':
     num_iters = 10 
     fit_shift = True 
     verbose = False
+    guessInitPrms = True
     
     makeSquareInput = True
     borderType = cv2.BORDER_CONSTANT
@@ -73,43 +74,24 @@ if __name__ == '__main__':
             overlayInputs(raw_image, gt)
             continue
 
-        gt = 1 / gt + 1e-8                                           # convert depth to disparity (inverse depth)
-        gt = normalize(gt)
+        pred, cropped = handlePredictionSteps(raw_image, gt, makeSquareInput, borderType, useCoreML, mlProgram, torch_model)
 
-        if makeSquareInput:
-            sc = 518 / max(raw_image.shape[:2])
-            resized = cv2.resize(raw_image, (int(raw_image.shape[1] * sc), int(raw_image.shape[0] * sc)), interpolation=cv2.INTER_CUBIC)
-            r = 518
-            c = 518
-            cropped, _, left = center_crop_or_pad(resized, r, c, borderType)
-            pred = inferFromCoreml(mlProgram, cropped) if useCoreML else inferFromTorch(torch_model, cropped, min(r, c))
-            pred = pred[:, left: left + resized.shape[1]]
-            pred = cv2.resize(pred, (gt.shape[1], gt.shape[0]), interpolation=cv2.INTER_CUBIC)
-            cropped = cropped[:, left: left + resized.shape[1], :]
-            cropped = cv2.resize(cropped, (gt.shape[1], gt.shape[0]), interpolation=cv2.INTER_CUBIC)
-        else:    
-            sc = 518 / min(raw_image.shape[:2])
-            resized = cv2.resize(raw_image, (int(raw_image.shape[1] * sc), int(raw_image.shape[0] * sc)), interpolation=cv2.INTER_CUBIC)
-            r = ensure_multiple_of(resized.shape[0], multiple_of=14)
-            c = ensure_multiple_of(resized.shape[1], multiple_of=14)
-            cropped, top, _ = center_crop_or_pad(resized, r, c)
-            pred = inferFromCoreml(mlProgram, cropped) if useCoreML else inferFromTorch(torch_model, cropped, min(r, c))
-            gtMarg = (top * 2) / (resized.shape[0] / gt.shape[0])
-            gtMarg = round(gtMarg / 2)                               # round to the nearest even number
-            gt = gt[gtMarg : -gtMarg, :]
-            pred = cv2.resize(pred, (gt.shape[1], gt.shape[0]), interpolation=cv2.INTER_CUBIC)
-            cropped = cv2.resize(cropped, (gt.shape[1], gt.shape[0]), interpolation=cv2.INTER_CUBIC)
+        #--------------------- fitting process
+        #-----------------------------------------------------------------------
 
-        pred = normalize(pred)
+        gt = 1 / gt + 1e-8      # convert depth to disparity (inverse depth)
 
         if weightedLsq: 
-            scale, shift, mask = weightedLeastSquared(pred, gt, inlier_bottom, outlier_cap, num_iters, fit_shift, verbose)
+            scale, shift, mask = weightedLeastSquared(pred, gt, guessInitPrms, inlier_bottom, outlier_cap, num_iters, fit_shift, verbose)
         else: 
             scale, shift, mask = estimateParametersRANSAC(pred, gt) 
 
         pred = scale * pred + shift
 
         print("Scale:", fp(scale), ", Shift:", fp(shift), '\n')
+
+        #-----------------------------------------------------------------------
+        #-----------------------------------------------------------------------
 
         visualRes, rmse = analyzeAndPrepVis(cropped, mask, gt, pred, mode="color", normalizeError=normalizeVisualError)
 

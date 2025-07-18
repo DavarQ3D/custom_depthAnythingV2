@@ -211,7 +211,22 @@ def robustNormalize(x):
 
 #=============================================================================================================
 
-def weightedLeastSquared(pred, gt, inlier_bottom=0.02, outlier_cap=0.2, num_iters=5, fit_shift=True, verbose=True, mask=None):
+def estimateInitialParams(x, y, fitShift):
+
+    t_pred = np.median(x)
+    s_pred = np.mean(np.abs(x - t_pred)) if len(x) > 0 else 1.0
+    
+    t_gt = np.median(y)     
+    s_gt = np.mean(np.abs(y - t_gt)) if len(y) > 0 else 1.0  
+
+    scale = s_gt / s_pred 
+    shift = t_gt - scale * t_pred if fitShift else 0.0
+    
+    return scale, shift
+
+#=============================================================================================================
+
+def weightedLeastSquared(pred, gt, guessInitPrms, inlier_bottom=0.02, outlier_cap=0.2, num_iters=5, fit_shift=True, verbose=True, mask=None):
 
     if verbose:
         print("inlier_bottom =", fp(inlier_bottom, 2), ", outlier_cap =", fp(outlier_cap, 2), '\n')
@@ -225,8 +240,8 @@ def weightedLeastSquared(pred, gt, inlier_bottom=0.02, outlier_cap=0.2, num_iter
     x = pred[mask].ravel()  
     y = gt[mask].ravel()    
 
-    scale = 1.0
-    shift = 0.0
+    scale, shift = estimateInitialParams(x, y, fit_shift) if guessInitPrms else (1.0, 0.0)
+
     for iter in range(num_iters):
 
         fit = scale * x + shift
@@ -276,3 +291,33 @@ def weightedLeastSquared(pred, gt, inlier_bottom=0.02, outlier_cap=0.2, num_iter
         print()
 
     return scale, shift, inlier_mask
+
+#=============================================================================================================
+
+def handlePredictionSteps(raw_image, gt, makeSquareInput, borderType, useCoreML, mlProgram, torch_model):
+
+    if makeSquareInput:
+        sc = 518 / max(raw_image.shape[:2])
+        resized = cv2.resize(raw_image, (int(raw_image.shape[1] * sc), int(raw_image.shape[0] * sc)), interpolation=cv2.INTER_CUBIC)
+        r = 518
+        c = 518
+        cropped, _, left = center_crop_or_pad(resized, r, c, borderType)
+        pred = inferFromCoreml(mlProgram, cropped) if useCoreML else inferFromTorch(torch_model, cropped, min(r, c))
+        pred = pred[:, left: left + resized.shape[1]]
+        pred = cv2.resize(pred, (gt.shape[1], gt.shape[0]), interpolation=cv2.INTER_CUBIC)
+        cropped = cropped[:, left: left + resized.shape[1], :]
+        cropped = cv2.resize(cropped, (gt.shape[1], gt.shape[0]), interpolation=cv2.INTER_CUBIC)
+    else:    
+        sc = 518 / min(raw_image.shape[:2])
+        resized = cv2.resize(raw_image, (int(raw_image.shape[1] * sc), int(raw_image.shape[0] * sc)), interpolation=cv2.INTER_CUBIC)
+        r = ensure_multiple_of(resized.shape[0], multiple_of=14)
+        c = ensure_multiple_of(resized.shape[1], multiple_of=14)
+        cropped, top, _ = center_crop_or_pad(resized, r, c)
+        pred = inferFromCoreml(mlProgram, cropped) if useCoreML else inferFromTorch(torch_model, cropped, min(r, c))
+        gtMarg = (top * 2) / (resized.shape[0] / gt.shape[0])
+        gtMarg = round(gtMarg / 2)                               # round to the nearest even number
+        gt = gt[gtMarg : -gtMarg, :]
+        pred = cv2.resize(pred, (gt.shape[1], gt.shape[0]), interpolation=cv2.INTER_CUBIC)
+        cropped = cv2.resize(cropped, (gt.shape[1], gt.shape[0]), interpolation=cv2.INTER_CUBIC)
+
+    return pred, cropped
