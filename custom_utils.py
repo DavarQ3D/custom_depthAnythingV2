@@ -322,4 +322,4 @@ def handlePredictionSteps(raw_image, gt, makeSquareInput, borderType, useCoreML,
 
     pred = np.maximum(pred, 1e-2)     # ensure no negative values
 
-    return pred, cropped
+    return pred, gt, cropped

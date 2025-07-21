@@ -34,7 +34,7 @@ if __name__ == '__main__':
     borderType = cv2.BORDER_CONSTANT
     
     normalizeVisualError = False
-    showVisuals = True
+    showVisuals = False
 
     #--------------------- load models
     torch_model = loadTorchModel(f'checkpoints/depth_anything_v2_{encoder}.pth', encoder)              # torch
@@ -75,7 +75,7 @@ if __name__ == '__main__':
             overlayInputs(raw_image, gt)
             continue
 
-        pred_disparity, cropped = handlePredictionSteps(raw_image, gt, makeSquareInput, borderType, useCoreML, mlProgram, torch_model)
+        pred_disparity, gt, cropped = handlePredictionSteps(raw_image, gt, makeSquareInput, borderType, useCoreML, mlProgram, torch_model)
 
         #--------------------- fitting process
         #-----------------------------------------------------------------------
