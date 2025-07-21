@@ -22,13 +22,13 @@ if __name__ == '__main__':
     encoder = "vits"
     useCoreML = False and ct is not None
     
-    weightedLsq = False
+    weightedLsq = True
     num_iters = 10 
     fit_shift = True 
     verbose = False
     guessInitPrms = True
     inlier_bottom = 0.02 
-    outlier_cap = 0.25 if guessInitPrms else 0.2
+    outlier_cap = 0.25 if guessInitPrms else 0.4
 
     makeSquareInput = True
     borderType = cv2.BORDER_CONSTANT
