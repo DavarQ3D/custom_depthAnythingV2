@@ -1,11 +1,16 @@
 import os
 import sys
 from custom_utils import *
+from enum import Enum
 
 if sys.platform == 'darwin':
     import coremltools as ct
 else:
     ct = None
+
+class Dataset(Enum):
+    IPHONE = 1
+    NYU2 = 2
 
 #=============================================================================================================
 
@@ -15,7 +20,8 @@ if __name__ == '__main__':
     os.makedirs(outdir, exist_ok=True)
 
     #--------------------- settings
-    inputPath = f"./data/iphone/"
+    dtSet = Dataset.IPHONE
+    inputPath = f"./data/iphone/" if dtSet == Dataset.IPHONE else f"./data/nyu2_test/"
     checkIfSynced = False
     sampleToTest = 6
 
@@ -62,14 +68,31 @@ if __name__ == '__main__':
         print(f'============= sample --> {idx} =============')
         print("========================================", '\n')
 
-        rgbPath = inputPath + f"RGB_{idx:04d}.png"
-        raw_image = cv2.imread(rgbPath)
-        raw_image = cv2.rotate(raw_image, cv2.ROTATE_90_CLOCKWISE)
+        if dtSet == Dataset.IPHONE:
 
-        index = sampleToTest if checkIfSynced else idx
-        gtPath = inputPath + f"ARKit_DepthValues_{index:04d}.txt" 
-        gt = loadMatrixFromFile(gtPath)
-        gt = cv2.rotate(gt, cv2.ROTATE_90_CLOCKWISE)
+            rgbFileName = f"RGB_{idx:04d}.png"
+            rgbPath = inputPath + rgbFileName 
+            raw_image = cv2.imread(rgbPath)
+            raw_image = cv2.rotate(raw_image, cv2.ROTATE_90_CLOCKWISE)
+
+            index = sampleToTest if checkIfSynced else idx
+            gtPath = inputPath + f"ARKit_DepthValues_{index:04d}.txt" 
+            gt = loadMatrixFromFile(gtPath)
+            gt = cv2.rotate(gt, cv2.ROTATE_90_CLOCKWISE)
+
+        elif dtSet == Dataset.NYU2:
+
+            rgbFileName = f"{idx:05d}_colors.png"
+            rgbPath = inputPath + rgbFileName 
+            raw_image = cv2.imread(rgbPath)
+
+            gtPath = inputPath + f"{idx:05d}_depth.png"
+            gt = cv2.imread(gtPath, cv2.IMREAD_UNCHANGED)
+            gt = gt.astype(np.float64) / 1000.0           # scale to meters
+
+        else:
+            raise ValueError("Unsupported dataset. Choose either Dataset.IPHONE or Dataset.NYU2.")
+
 
         if checkIfSynced:
             overlayInputs(raw_image, gt)
