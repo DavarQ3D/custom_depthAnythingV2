@@ -22,7 +22,7 @@ if __name__ == '__main__':
     encoder = "vits"
     useCoreML = False and ct is not None
     
-    weightedLsq = True
+    weightedLsq = False
     num_iters = 10 
     fit_shift = True 
     verbose = False
@@ -50,6 +50,7 @@ if __name__ == '__main__':
     samplewithHighestError = 0
     minRMSE = float('inf')
     maxRMSE = float('-inf')
+    sampleCounter = 0
     start = max(0, sampleToTest - 3) if checkIfSynced else 0
 
     for idx in range(start, numFiles):
@@ -104,7 +105,8 @@ if __name__ == '__main__':
             samplewithHighestError = idx
 
         totalError += rmse
-        meanErr = totalError / (idx + 1)
+        meanErr = totalError / (sampleCounter + 1)
+        sampleCounter += 1
         print("\nmean across all images so far --> RMSE =", fp(meanErr, 6))
         print("\nimage with lowest error:", sampleWithLowestError, "--> RMSE =", fp(minRMSE, 6))
         print("image with highest error:", samplewithHighestError, "--> RMSE =", fp(maxRMSE, 6))
