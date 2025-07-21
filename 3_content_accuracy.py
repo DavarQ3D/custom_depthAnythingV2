@@ -74,19 +74,20 @@ if __name__ == '__main__':
             overlayInputs(raw_image, gt)
             continue
 
-        pred, cropped = handlePredictionSteps(raw_image, gt, makeSquareInput, borderType, useCoreML, mlProgram, torch_model)
+        pred_disparity, cropped = handlePredictionSteps(raw_image, gt, makeSquareInput, borderType, useCoreML, mlProgram, torch_model)
 
         #--------------------- fitting process
         #-----------------------------------------------------------------------
 
-        gt = 1 / gt + 1e-8      # convert depth to disparity (inverse depth)
+        gt_disparity = 1 / (gt + 1e-8)               # convert depth to disparity (inverse depth)
 
         if weightedLsq: 
-            scale, shift, mask = weightedLeastSquared(pred, gt, guessInitPrms, inlier_bottom, outlier_cap, num_iters, fit_shift, verbose)
+            scale, shift, mask = weightedLeastSquared(pred_disparity, gt_disparity, guessInitPrms, inlier_bottom, outlier_cap, num_iters, fit_shift, verbose)
         else: 
-            scale, shift, mask = estimateParametersRANSAC(pred, gt) 
+            scale, shift, mask = estimateParametersRANSAC(pred_disparity, gt_disparity) 
 
-        pred = scale * pred + shift
+        pred_disparity = scale * pred_disparity + shift
+        pred = 1 / (pred_disparity + 1e-8)           # convert back to depth
 
         print("Scale:", fp(scale), ", Shift:", fp(shift), '\n')
 
