@@ -320,4 +320,6 @@ def handlePredictionSteps(raw_image, gt, makeSquareInput, borderType, useCoreML,
         pred = cv2.resize(pred, (gt.shape[1], gt.shape[0]), interpolation=cv2.INTER_CUBIC)
         cropped = cv2.resize(cropped, (gt.shape[1], gt.shape[0]), interpolation=cv2.INTER_CUBIC)
 
+    pred = np.maximum(pred, 1e-2)     # ensure no negative values
+
     return pred, cropped
