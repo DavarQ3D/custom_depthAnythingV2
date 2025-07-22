@@ -22,7 +22,7 @@ if __name__ == '__main__':
     #--------------------- settings
     dtSet = Dataset.NYU2
     inputPath = f"./data/iphone/" if dtSet == Dataset.IPHONE else f"./data/nyu2_test/"
-    checkIfSynced = False
+    checkIfSynced = False and dtSet == Dataset.IPHONE
     sampleToTest = 6
 
     encoder = "vits"
@@ -40,7 +40,7 @@ if __name__ == '__main__':
     borderType = cv2.BORDER_CONSTANT
     
     normalizeVisualError = False
-    showVisuals = False
+    showVisuals = True
 
     #--------------------- load models
     torch_model = loadTorchModel(f'checkpoints/depth_anything_v2_{encoder}.pth', encoder)              # torch
@@ -91,6 +91,10 @@ if __name__ == '__main__':
             gt = loadMatrixFromFile(gtPath)
             gt = cv2.rotate(gt, cv2.ROTATE_90_CLOCKWISE)
 
+            if checkIfSynced:
+                overlayInputs(raw_image, gt)
+                continue
+
         elif dtSet == Dataset.NYU2:
 
             rgbFileName = f"{idx:05d}_colors.png"
@@ -101,13 +105,12 @@ if __name__ == '__main__':
             gt = cv2.imread(gtPath, cv2.IMREAD_UNCHANGED)
             gt = gt.astype(np.float64) / 1000.0           # scale to meters
 
+            margin = 8   # remove white margin
+            raw_image = raw_image[margin:-margin, margin:-margin, :]
+            gt = gt[margin:-margin, margin:-margin]
+
         else:
-            raise ValueError("Unsupported dataset. Choose either Dataset.IPHONE or Dataset.NYU2.")
-
-
-        if checkIfSynced:
-            overlayInputs(raw_image, gt)
-            continue
+            raise ValueError("Unsupported dataset")
 
         pred_disparity, gt, cropped = handlePredictionSteps(raw_image, gt, makeSquareInput, borderType, useCoreML, mlProgram, torch_model)
 
@@ -146,7 +149,12 @@ if __name__ == '__main__':
         print("image with highest error:", samplewithHighestError, "--> RMSE =", fp(maxRMSE, 6))
 
         if showVisuals:
-            ssc = 2.5 if ct else 2
+            if dtSet == Dataset.IPHONE:
+                ssc = 2.5 if ct else 2
+            elif dtSet == Dataset.NYU2:
+                ssc = 0.6
+            else:
+                raise ValueError("Unsupported dataset")
             visualRes = cv2.resize(visualRes, None, fx=ssc, fy=ssc, interpolation=cv2.INTER_CUBIC)
             displayImage("visualRes", visualRes)
 

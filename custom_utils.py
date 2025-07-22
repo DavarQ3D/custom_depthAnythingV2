@@ -197,7 +197,7 @@ def center_crop_or_pad(img: np.ndarray, desiredRow: int, desiredCol: int, border
         else:
             raise ValueError(f"Unsupported border type: {borderType}")
 
-    return img, top, pad_left
+    return img, pad_top, pad_left, top, left
 
 #=============================================================================================================
 
@@ -297,16 +297,22 @@ def weightedLeastSquared(pred, gt, guessInitPrms, inlier_bottom=0.02, outlier_ca
 def handlePredictionSteps(raw_image, gt, makeSquareInput, borderType, useCoreML, mlProgram, torch_model):
 
     if makeSquareInput:
+        
         sc = 518 / max(raw_image.shape[:2])
         resized = cv2.resize(raw_image, (int(raw_image.shape[1] * sc), int(raw_image.shape[0] * sc)), interpolation=cv2.INTER_CUBIC)
+
         r = 518
         c = 518
-        cropped, _, left = center_crop_or_pad(resized, r, c, borderType)
+        cropped, pad_top, pad_left, _, _ = center_crop_or_pad(resized, r, c, borderType)
+
         pred = inferFromCoreml(mlProgram, cropped) if useCoreML else inferFromTorch(torch_model, cropped, min(r, c))
-        pred = pred[:, left: left + resized.shape[1]]
-        pred = cv2.resize(pred, (gt.shape[1], gt.shape[0]), interpolation=cv2.INTER_CUBIC)
-        cropped = cropped[:, left: left + resized.shape[1], :]
+
+        pred    = pred   [pad_top : pad_top + resized.shape[0], pad_left: pad_left + resized.shape[1]]
+        cropped = cropped[pad_top : pad_top + resized.shape[0], pad_left: pad_left + resized.shape[1], :]
+        
+        pred    = cv2.resize(pred,    (gt.shape[1], gt.shape[0]), interpolation=cv2.INTER_CUBIC)
         cropped = cv2.resize(cropped, (gt.shape[1], gt.shape[0]), interpolation=cv2.INTER_CUBIC)
+
     else:    
         sc = 518 / min(raw_image.shape[:2])
         resized = cv2.resize(raw_image, (int(raw_image.shape[1] * sc), int(raw_image.shape[0] * sc)), interpolation=cv2.INTER_CUBIC)

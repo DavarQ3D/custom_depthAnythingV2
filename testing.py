@@ -34,9 +34,5 @@ for i in range(numFiles):
     shutil.copy(rgbSrc, rgbDst)
     
 
-    
-    
-
-    
 
 
