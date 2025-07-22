@@ -20,7 +20,7 @@ if __name__ == '__main__':
     os.makedirs(outdir, exist_ok=True)
 
     #--------------------- settings
-    dtSet = Dataset.IPHONE
+    dtSet = Dataset.NYU2
     inputPath = f"./data/iphone/" if dtSet == Dataset.IPHONE else f"./data/nyu2_test/"
     checkIfSynced = False
     sampleToTest = 6
@@ -44,8 +44,19 @@ if __name__ == '__main__':
 
     #--------------------- load models
     torch_model = loadTorchModel(f'checkpoints/depth_anything_v2_{encoder}.pth', encoder)              # torch
-    rows = 518 if makeSquareInput else 686
-    mlProgram = ct.models.CompiledMLModel(f"./checkpoints/custom_vits_F16_{rows}_{518}.mlmodelc") if useCoreML else None  # coreml
+
+    if makeSquareInput:
+        rows = 518
+        cols = 518
+    else:
+        if dtSet == Dataset.IPHONE:
+            rows = 686
+            cols = 518
+        else:
+            rows = 518
+            cols = 686
+
+    mlProgram = ct.models.CompiledMLModel(f"./checkpoints/custom_vits_F16_{rows}_{cols}.mlmodelc") if useCoreML else None  # coreml
 
     #------------------ inference loop
     #------------------------------------------------------------------
