@@ -32,9 +32,15 @@ if __name__ == '__main__':
     num_iters = 10 
     fit_shift = True 
     verbose = False
-    guessInitPrms = True
-    inlier_bottom = 0.02 
-    outlier_cap = 0.25 if guessInitPrms else 0.4
+
+    if dtSet == Dataset.IPHONE:
+        inlier_bottom = 0.02 
+        outlier_cap = 0.2
+    elif dtSet == Dataset.NYU2:
+        inlier_bottom = 0.01 
+        outlier_cap = 0.1 
+    else:
+        raise ValueError("Unsupported dataset")
 
     makeSquareInput = True
     borderType = cv2.BORDER_CONSTANT
@@ -120,6 +126,7 @@ if __name__ == '__main__':
         gt_disparity = 1 / (gt + 1e-8)               # convert depth to disparity (inverse depth)
 
         if weightedLsq: 
+            guessInitPrms = True
             scale, shift, mask = weightedLeastSquared(pred_disparity, gt_disparity, guessInitPrms, inlier_bottom, outlier_cap, num_iters, fit_shift, verbose)
         else: 
             scale, shift, mask = estimateParametersRANSAC(pred_disparity, gt_disparity) 
@@ -132,7 +139,7 @@ if __name__ == '__main__':
         #-----------------------------------------------------------------------
         #-----------------------------------------------------------------------
 
-        visualRes, rmse = analyzeAndPrepVis(cropped, mask, gt, pred, mode="color", normalizeError=normalizeVisualError)
+        visualRes, rmse = analyzeAndPrepVis(cropped, mask, gt_disparity, pred_disparity, mode="color", normalizeError=normalizeVisualError)
 
         if rmse < minRMSE:
             minRMSE = rmse
