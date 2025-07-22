@@ -28,19 +28,8 @@ if __name__ == '__main__':
     encoder = "vits"
     useCoreML = False and ct is not None
     
-    weightedLsq = True
-    num_iters = 10 
-    fit_shift = True 
-    verbose = False
-
-    if dtSet == Dataset.IPHONE:
-        inlier_bottom = 0.02 
-        outlier_cap = 0.2
-    elif dtSet == Dataset.NYU2:
-        inlier_bottom = 0.01 
-        outlier_cap = 0.1 
-    else:
-        raise ValueError("Unsupported dataset")
+    weightedLsq = False
+    fitOnDepth = True
 
     makeSquareInput = True
     borderType = cv2.BORDER_CONSTANT
@@ -120,26 +109,48 @@ if __name__ == '__main__':
 
         pred_disparity, gt, cropped = handlePredictionSteps(raw_image, gt, makeSquareInput, borderType, useCoreML, mlProgram, torch_model)
 
-        #--------------------- fitting process
-        #-----------------------------------------------------------------------
+        #--------------------- fit in disparity
 
         gt_disparity = 1 / (gt + 1e-8)               # convert depth to disparity (inverse depth)
 
         if weightedLsq: 
-            guessInitPrms = True
-            scale, shift, mask = weightedLeastSquared(pred_disparity, gt_disparity, guessInitPrms, inlier_bottom, outlier_cap, num_iters, fit_shift, verbose)
+            inb = 0.02 if dtSet == Dataset.IPHONE else 0.01
+            outc = 0.2 if dtSet == Dataset.IPHONE else 0.05
+            scale, shift, mask = weightedLeastSquared(pred_disparity, gt_disparity, guessInitPrms=True, inlier_bottom=inb, outlier_cap=outc, num_iters=10, verbose=False)
         else: 
             scale, shift, mask = estimateParametersRANSAC(pred_disparity, gt_disparity) 
 
-        pred_disparity = scale * pred_disparity + shift
-        pred = 1 / (pred_disparity + 1e-8)           # convert back to depth
-
         print("Scale:", fp(scale), ", Shift:", fp(shift), '\n')
 
+        pred_disparity = scale * pred_disparity + shift
+
+        visP = pred_disparity
+        visG = gt_disparity
+        visM = mask
+
+        #--------------------- fit in depth
+
+        if fitOnDepth:
+           
+            pred = 1 / (pred_disparity + 1e-8)           # convert back to depth
+           
+            if weightedLsq: 
+                inb = 0.02 if dtSet == Dataset.IPHONE else 0.01
+                outc = 0.2 if dtSet == Dataset.IPHONE else 0.05
+                scale, shift, mask = weightedLeastSquared(pred, gt, guessInitPrms=True, inlier_bottom=inb, outlier_cap=outc, num_iters=10, verbose=False)
+            else: 
+                scale, shift, mask = estimateParametersRANSAC(pred, gt) 
+
+            pred = scale * pred + shift    
+
+            visP = pred
+            visG = gt
+            visM = mask            
+
         #-----------------------------------------------------------------------
         #-----------------------------------------------------------------------
 
-        visualRes, rmse = analyzeAndPrepVis(cropped, mask, gt_disparity, pred_disparity, mode="color", normalizeError=normalizeVisualError)
+        visualRes, rmse = analyzeAndPrepVis(cropped, visM, visG, visP, mode="color", normalizeError=normalizeVisualError)
 
         if rmse < minRMSE:
             minRMSE = rmse
