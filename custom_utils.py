@@ -171,8 +171,8 @@ def center_crop_or_pad(img: np.ndarray, desiredRow: int, desiredCol: int, border
     h, w = img.shape[:2]
 
     # centre crop if the dimension is too large 
-    top = None
-    left = None
+    top = 0
+    left = 0
     if h > desiredRow:
         top = (h - desiredRow) // 2
         img = img[top : top + desiredRow, :, :]
@@ -316,14 +316,20 @@ def handlePredictionSteps(raw_image, gt, makeSquareInput, borderType, useCoreML,
     else:    
         sc = 518 / min(raw_image.shape[:2])
         resized = cv2.resize(raw_image, (int(raw_image.shape[1] * sc), int(raw_image.shape[0] * sc)), interpolation=cv2.INTER_CUBIC)
+
         r = ensure_multiple_of(resized.shape[0], multiple_of=14)
         c = ensure_multiple_of(resized.shape[1], multiple_of=14)
-        cropped, top, _ = center_crop_or_pad(resized, r, c)
+        cropped, _, _, top, left = center_crop_or_pad(resized, r, c)
+        
         pred = inferFromCoreml(mlProgram, cropped) if useCoreML else inferFromTorch(torch_model, cropped, min(r, c))
-        gtMarg = (top * 2) / (resized.shape[0] / gt.shape[0])
-        gtMarg = round(gtMarg / 2)                               # round to the nearest even number
-        gt = gt[gtMarg : -gtMarg, :]
-        pred = cv2.resize(pred, (gt.shape[1], gt.shape[0]), interpolation=cv2.INTER_CUBIC)
+        
+        vertMarg  = (top * 2) / (resized.shape[0] / gt.shape[0])
+        horizMarg = (left * 2) / (resized.shape[1] / gt.shape[1])
+        vertMarg = round(vertMarg / 2)                                # round to the nearest even number
+        horizMarg = round(horizMarg / 2)
+        gt = gt[vertMarg or None : (-vertMarg) or None, horizMarg or None : (-horizMarg) or None]
+        
+        pred    = cv2.resize(pred,    (gt.shape[1], gt.shape[0]), interpolation=cv2.INTER_CUBIC)
         cropped = cv2.resize(cropped, (gt.shape[1], gt.shape[0]), interpolation=cv2.INTER_CUBIC)
 
     pred = np.maximum(pred, 1e-2)     # ensure no negative values

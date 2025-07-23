@@ -29,7 +29,7 @@ if __name__ == '__main__':
     useCoreML = False and ct is not None
     
     weightedLsq = False
-    fitOnDepth = True
+    fitOnDepth = False
 
     makeSquareInput = True
     borderType = cv2.BORDER_CONSTANT
