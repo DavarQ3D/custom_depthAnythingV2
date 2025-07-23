@@ -28,8 +28,9 @@ if __name__ == '__main__':
     encoder = "vits"
     useCoreML = False and ct is not None
     
-    weightedLsq = False
+    weightedLsq = True
     fitOnDepth = False
+    k_hi = 2.5 if dtSet == Dataset.IPHONE else 3.0
 
     makeSquareInput = True
     borderType = cv2.BORDER_CONSTANT
@@ -114,9 +115,7 @@ if __name__ == '__main__':
         gt_disparity = 1 / (gt + 1e-8)               # convert depth to disparity (inverse depth)
 
         if weightedLsq: 
-            inb = 0.02 if dtSet == Dataset.IPHONE else 0.01
-            outc = 0.2 if dtSet == Dataset.IPHONE else 0.05
-            scale, shift, mask = weightedLeastSquared(pred_disparity, gt_disparity, guessInitPrms=True, inlier_bottom=inb, outlier_cap=outc, num_iters=10, verbose=False)
+            scale, shift, mask = weightedLeastSquared(pred_disparity, gt_disparity, guessInitPrms=True, k_lo=0.2, k_hi=k_hi, num_iters=10, fit_shift=True, verbose=False)
         else: 
             scale, shift, mask = estimateParametersRANSAC(pred_disparity, gt_disparity) 
 
@@ -135,9 +134,7 @@ if __name__ == '__main__':
             pred = 1 / (pred_disparity + 1e-8)           # convert back to depth
            
             if weightedLsq: 
-                inb = 0.02 if dtSet == Dataset.IPHONE else 0.01
-                outc = 0.2 if dtSet == Dataset.IPHONE else 0.05
-                scale, shift, mask = weightedLeastSquared(pred, gt, guessInitPrms=True, inlier_bottom=inb, outlier_cap=outc, num_iters=10, verbose=False)
+                scale, shift, mask = weightedLeastSquared(pred, gt, guessInitPrms=True, k_lo=0.2, k_hi=k_hi, num_iters=10, fit_shift=True, verbose=False)
             else: 
                 scale, shift, mask = estimateParametersRANSAC(pred, gt) 
 

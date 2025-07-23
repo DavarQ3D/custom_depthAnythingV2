@@ -226,10 +226,7 @@ def estimateInitialParams(x, y, fitShift):
 
 #=============================================================================================================
 
-def weightedLeastSquared(pred, gt, guessInitPrms, inlier_bottom=0.02, outlier_cap=0.2, num_iters=5, fit_shift=True, verbose=True, mask=None):
-
-    if verbose:
-        print("inlier_bottom =", fp(inlier_bottom, 2), ", outlier_cap =", fp(outlier_cap, 2), '\n')
+def weightedLeastSquared(pred, gt, guessInitPrms, k_lo=0.5, k_hi=3, num_iters=5, fit_shift=True, verbose=True, mask=None):
 
     if mask is None:
         mask = (gt > 0) & (pred > 0) & np.isfinite(gt) & np.isfinite(pred)
@@ -248,8 +245,13 @@ def weightedLeastSquared(pred, gt, guessInitPrms, inlier_bottom=0.02, outlier_ca
         residuals = y - fit
         abs_res = np.abs(residuals)
 
+        sigma = 1.4826 * np.median(abs_res) + 1e-12
+        outlier_cap = k_hi * sigma
+        inlier_bottom = k_lo * sigma
+
         if verbose:
-            print("iter =", iter, "-> scale =", fp(scale), ", shift =", fp(shift), ", all pixels err -> max:", fp(abs_res.max()), ", mean:", fp(abs_res.mean()))
+            print("inlier_bottom =", fp(inlier_bottom, 2), ", outlier_cap =", fp(outlier_cap, 2))
+            print("iter =", iter, "-> scale =", fp(scale), ", shift =", fp(shift), ", all pixels err -> max:", fp(abs_res.max()), ", mean:", fp(abs_res.mean()), '\n')
 
         valid = abs_res <= outlier_cap    # hard skip outliers mask
         if not valid.any():
