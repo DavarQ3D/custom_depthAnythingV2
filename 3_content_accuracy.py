@@ -29,7 +29,7 @@ if __name__ == '__main__':
     useCoreML = False and ct is not None
     
     weightedLsq = True
-    fitOnDepth = False
+    fitOnDepth = True
     k_hi = 2.5 if dtSet == Dataset.IPHONE else 3.0
 
     makeSquareInput = True
