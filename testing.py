@@ -1,6 +1,5 @@
 import os
 import shutil
-import re
 
 imgSrcPrefix = "./data/kitti/image/"
 depthSrcPrefix = "./data/kitti/groundtruth_depth/"
