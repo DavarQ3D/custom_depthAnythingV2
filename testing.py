@@ -4,6 +4,7 @@ import shutil
 imgSrcPrefix = "./data/kitti/image/"
 depthSrcPrefix = "./data/kitti/groundtruth_depth/"
 dstPath = "C:\\Users\\PC\\Desktop\\Temporary\\projects\\custom_depthAnythingV2\\data\\kitti_temporal/"
+varietyDstPrefix = "C:\\Users\\PC\\Desktop\\Temporary\\projects\\custom_depthAnythingV2\\data\\kitti_variety\\"
 
 filenames = os.listdir(imgSrcPrefix)
 sorted_filenames = sorted(filenames)
@@ -31,6 +32,16 @@ for i in range(numFiles):
 
     shutil.copy(rgbSrc, rgbDst)
     shutil.copy(depthSrc, depthDst)
+
+    if i % 20 == 0:
+        var_i = i // 20
+        if not os.path.exists(varietyDstPrefix):
+            os.makedirs(varietyDstPrefix)
+
+        rgbVarDst   = varietyDstPrefix + f"{var_i:05d}_colors.png"
+        depthVarDst = varietyDstPrefix + f"{var_i:05d}_depth.png"
+        shutil.copy(rgbSrc,   rgbVarDst)
+        shutil.copy(depthSrc, depthVarDst)
 
     
 
