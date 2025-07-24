@@ -123,31 +123,23 @@ if __name__ == '__main__':
 
         pred_disparity = scale * pred_disparity + shift
 
-        visP = pred_disparity
-        visG = gt_disparity
-        visM = mask
+        pred = 1 / (pred_disparity + 1e-8)           # convert back to depth
 
         #--------------------- fit in depth
 
         if fitOnDepth:
-           
-            pred = 1 / (pred_disparity + 1e-8)           # convert back to depth
            
             if weightedLsq: 
                 scale, shift, mask = weightedLeastSquared(pred, gt, guessInitPrms=True, k_lo=0.2, k_hi=k_hi, num_iters=10, fit_shift=True, verbose=False)
             else: 
                 scale, shift, mask = estimateParametersRANSAC(pred, gt) 
 
-            pred = scale * pred + shift    
-
-            visP = pred
-            visG = gt
-            visM = mask            
+            pred = scale * pred + shift            
 
         #-----------------------------------------------------------------------
         #-----------------------------------------------------------------------
 
-        visualRes, rmse = analyzeAndPrepVis(cropped, visM, visG, visP, mode="color", normalizeError=normalizeVisualError)
+        visualRes, rmse = analyzeAndPrepVis(cropped, mask, gt, pred, mode="color", normalizeError=normalizeVisualError)
 
         if rmse < minRMSE:
             minRMSE = rmse
