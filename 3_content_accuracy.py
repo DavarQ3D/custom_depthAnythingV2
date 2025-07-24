@@ -26,7 +26,7 @@ if __name__ == '__main__':
     sampleToTest = 6
 
     encoder = "vits"
-    useCoreML = False and ct is not None
+    useCoreML = False and ct is not None and dtSet == Dataset.IPHONE   # our coreml model has been created suited to iphone image dimensions
     
     weightedLsq = True
     fitOnDepth = True
