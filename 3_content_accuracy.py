@@ -11,17 +11,27 @@ else:
 class Dataset(Enum):
     IPHONE = 1
     NYU2 = 2
+    KITTI = 3
 
 #=============================================================================================================
 
 if __name__ == '__main__':
 
+    dtSet = Dataset.NYU2
     outdir = "./data/outputs"
     os.makedirs(outdir, exist_ok=True)
 
     #--------------------- settings
-    dtSet = Dataset.NYU2
-    inputPath = f"./data/iphone/" if dtSet == Dataset.IPHONE else f"./data/nyu2_test/"
+    if dtSet == Dataset.IPHONE:
+        inputPath = f"./data/iphone/"
+    elif dtSet == Dataset.NYU2:
+        inputPath = f"./data/nyu2_test/"
+    elif dtSet == Dataset.KITTI:
+        inputPath = f"./data/kitti_variety/"
+        # inputPath = f"./data/kitti_temporal/"
+    else:
+        raise ValueError("Unsupported dataset")
+    
     checkIfSynced = False and dtSet == Dataset.IPHONE
     sampleToTest = 6
 
@@ -105,6 +115,16 @@ if __name__ == '__main__':
             raw_image = raw_image[margin:-margin, margin:-margin, :]
             gt = gt[margin:-margin, margin:-margin]
 
+        elif dtSet == Dataset.KITTI:
+
+            rgbFileName = f"{idx:05d}_colors.png"
+            rgbPath = inputPath + rgbFileName 
+            raw_image = cv2.imread(rgbPath)
+
+            gtPath = inputPath + f"{idx:05d}_depth.png"
+            gt = cv2.imread(gtPath, cv2.IMREAD_UNCHANGED)
+            gt = gt.astype(np.float64) / 256.0           # scale to meters
+
         else:
             raise ValueError("Unsupported dataset")
 
@@ -112,10 +132,13 @@ if __name__ == '__main__':
 
         #--------------------- fit in disparity
 
-        gt_disparity = 1 / (gt + 1e-8)               # convert depth to disparity (inverse depth)
+        mask = getValidDataMask(gt)
+        mask = mask & getValidDataMask(pred_disparity)
+        gt_disparity = 1 / (gt + 1e-8)                 # convert depth to disparity (inverse depth)
+        mask = mask & getValidDataMask(gt_disparity)
 
         if weightedLsq: 
-            scale, shift, mask = weightedLeastSquared(pred_disparity, gt_disparity, guessInitPrms=True, k_lo=0.2, k_hi=k_hi, num_iters=10, fit_shift=True, verbose=False)
+            scale, shift, mask = weightedLeastSquared(pred_disparity, gt_disparity, guessInitPrms=True, k_lo=0.2, k_hi=k_hi, num_iters=10, fit_shift=True, verbose=False, mask=mask)
         else: 
             scale, shift, mask = estimateParametersRANSAC(pred_disparity, gt_disparity) 
 
@@ -128,9 +151,12 @@ if __name__ == '__main__':
         #--------------------- fit in depth
 
         if fitOnDepth:
+
+            mask = getValidDataMask(gt)
+            mask = mask & getValidDataMask(pred)
            
             if weightedLsq: 
-                scale, shift, mask = weightedLeastSquared(pred, gt, guessInitPrms=True, k_lo=0.2, k_hi=k_hi, num_iters=10, fit_shift=True, verbose=False)
+                scale, shift, mask = weightedLeastSquared(pred, gt, guessInitPrms=True, k_lo=0.2, k_hi=k_hi, num_iters=10, fit_shift=True, verbose=False, mask=mask)
             else: 
                 scale, shift, mask = estimateParametersRANSAC(pred, gt) 
 
@@ -139,7 +165,8 @@ if __name__ == '__main__':
         #-----------------------------------------------------------------------
         #-----------------------------------------------------------------------
 
-        visualRes, rmse = analyzeAndPrepVis(cropped, mask, gt, pred, mode="color", normalizeError=normalizeVisualError)
+        vertConcat = True if dtSet == Dataset.KITTI else False
+        visualRes, rmse = analyzeAndPrepVis(cropped, mask, gt, pred, mode="color", normalizeError=normalizeVisualError, vertConcat=vertConcat)
 
         if rmse < minRMSE:
             minRMSE = rmse
@@ -159,6 +186,8 @@ if __name__ == '__main__':
             if dtSet == Dataset.IPHONE:
                 ssc = 2.5 if ct else 2
             elif dtSet == Dataset.NYU2:
+                ssc = 0.6
+            elif dtSet == Dataset.KITTI:
                 ssc = 0.6
             else:
                 raise ValueError("Unsupported dataset")

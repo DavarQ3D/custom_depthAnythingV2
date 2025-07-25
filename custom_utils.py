@@ -47,7 +47,7 @@ def normalize(image):
 def denormalize(image):
     return (image * 255).astype(np.uint8)
 
-def analyzeAndPrepVis(rgb, mask, ref, pred, mode = "color", normalizeError=True):
+def analyzeAndPrepVis(rgb, mask, ref, pred, mode = "color", normalizeError=True, vertConcat=False):
 
     assert mode in ("color", "grayscale")
     
@@ -77,7 +77,9 @@ def analyzeAndPrepVis(rgb, mask, ref, pred, mode = "color", normalizeError=True)
     err = cv2.cvtColor(err, cv2.COLOR_GRAY2BGR)
     err = cv2.applyColorMap(err, cv2.COLORMAP_JET)
 
-    return cv2.hconcat([rgb, mask, ref, pred, err]), rmse
+    visualRes = cv2.vconcat([rgb, mask, ref, pred, err]) if vertConcat else cv2.hconcat([rgb, mask, ref, pred, err])
+
+    return visualRes, rmse
 
 #=============================================================================================================
 
@@ -293,6 +295,11 @@ def weightedLeastSquared(pred, gt, guessInitPrms, k_lo=0.5, k_hi=3, num_iters=5,
         print()
 
     return scale, shift, inlier_mask
+
+#=============================================================================================================
+
+def getValidDataMask(image):
+    return (image > 0) & np.isfinite(image)
 
 #=============================================================================================================
 
