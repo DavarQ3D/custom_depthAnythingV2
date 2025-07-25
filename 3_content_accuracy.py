@@ -17,7 +17,7 @@ class Dataset(Enum):
 
 if __name__ == '__main__':
 
-    dtSet = Dataset.NYU2
+    dtSet = Dataset.KITTI
     outdir = "./data/outputs"
     os.makedirs(outdir, exist_ok=True)
 
@@ -131,11 +131,12 @@ if __name__ == '__main__':
         pred_disparity, gt, cropped = handlePredictionSteps(raw_image, gt, makeSquareInput, borderType, useCoreML, mlProgram, torch_model)
 
         #--------------------- fit in disparity
-
-        mask = getValidDataMask(gt)
-        mask = mask & getValidDataMask(pred_disparity)
-        gt_disparity = 1 / (gt + 1e-8)                 # convert depth to disparity (inverse depth)
-        mask = mask & getValidDataMask(gt_disparity)
+  
+        maxVal = 50.0 if dtSet == Dataset.KITTI else 15.0
+        gtMask, gt = getValidMaskAndClipExtremes(gt, minVal=0.01, maxVal=80.0)  
+        gt_disparity = 1 / (gt + 1e-8)       # convert depth to disparity (inverse depth)
+        predDisparityMask, pred_disparity = getValidMaskAndClipExtremes(pred_disparity, minVal=0.01, maxVal=100)  # clip extreme values
+        mask = gtMask & predDisparityMask
 
         if weightedLsq: 
             scale, shift, mask = weightedLeastSquared(pred_disparity, gt_disparity, guessInitPrms=True, k_lo=0.2, k_hi=k_hi, num_iters=10, fit_shift=True, verbose=False, mask=mask)
@@ -145,15 +146,14 @@ if __name__ == '__main__':
         print("Scale:", fp(scale), ", Shift:", fp(shift), '\n')
 
         pred_disparity = scale * pred_disparity + shift
-
         pred = 1 / (pred_disparity + 1e-8)           # convert back to depth
 
         #--------------------- fit in depth
 
         if fitOnDepth:
 
-            mask = getValidDataMask(gt)
-            mask = mask & getValidDataMask(pred)
+            predMask, pred = getValidMaskAndClipExtremes(pred, minVal=0.01, maxVal=maxVal)
+            mask = mask & predMask
            
             if weightedLsq: 
                 scale, shift, mask = weightedLeastSquared(pred, gt, guessInitPrms=True, k_lo=0.2, k_hi=k_hi, num_iters=10, fit_shift=True, verbose=False, mask=mask)
