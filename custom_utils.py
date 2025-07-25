@@ -58,9 +58,7 @@ def analyzeAndPrepVis(rgb, mask, ref, pred, mode = "color", normalizeError=True,
 
     ref = normalize(ref)
     pred = normalize(pred)
-
-    if normalizeError:
-        err = normalize(err)
+    err = normalize(err) if normalizeError else np.clip(err, 0, 1)
 
     ref = denormalize(ref)
     pred = denormalize(pred)    

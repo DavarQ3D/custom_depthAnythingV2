@@ -45,7 +45,7 @@ if __name__ == '__main__':
     makeSquareInput = True
     borderType = cv2.BORDER_CONSTANT
     
-    normalizeVisualError = False
+    normalizeVisualError = True
     showVisuals = True
 
     #--------------------- load models
@@ -133,9 +133,9 @@ if __name__ == '__main__':
         #--------------------- fit in disparity
   
         maxVal = 50.0 if dtSet == Dataset.KITTI else 15.0
-        gtMask, gt = getValidMaskAndClipExtremes(gt, minVal=0.01, maxVal=80.0)  
+        gtMask, gt = getValidMaskAndClipExtremes(gt, minVal=0.01, maxVal=maxVal)  
         gt_disparity = 1 / (gt + 1e-8)       # convert depth to disparity (inverse depth)
-        predDisparityMask, pred_disparity = getValidMaskAndClipExtremes(pred_disparity, minVal=0.01, maxVal=100)  # clip extreme values
+        predDisparityMask, pred_disparity = getValidMaskAndClipExtremes(pred_disparity, minVal=0.01, maxVal=100) 
         mask = gtMask & predDisparityMask
 
         if weightedLsq: 
