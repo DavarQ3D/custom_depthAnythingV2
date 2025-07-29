@@ -48,8 +48,16 @@ if __name__ == '__main__':
     normalizeVisualError = True
     showVisuals = True
 
+    metricDepth = False
+
     #--------------------- load models
-    torch_model = loadTorchModel(f'checkpoints/depth_anything_v2_{encoder}.pth', encoder)              # torch
+
+    if metricDepth:
+        mPath = f'checkpoints/depth_anything_v2_metric_vkitti_{encoder}.pth' if dtSet == Dataset.KITTI else f'checkpoints/depth_anything_v2_metric_hypersim_{encoder}.pth'
+        max_depth = 80 if dtSet == Dataset.KITTI else 20
+        torch_model = loadTorchModel(mPath, encoder, max_depth)              
+    else:
+        torch_model = loadTorchModel(f'checkpoints/depth_anything_v2_{encoder}.pth', encoder)         
 
     if makeSquareInput:
         rows = 518
