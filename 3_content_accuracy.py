@@ -17,7 +17,7 @@ class Dataset(Enum):
 
 if __name__ == '__main__':
 
-    dtSet = Dataset.KITTI
+    dtSet = Dataset.IPHONE
     outdir = "./data/outputs"
     os.makedirs(outdir, exist_ok=True)
 

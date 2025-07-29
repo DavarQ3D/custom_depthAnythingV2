@@ -2,14 +2,14 @@ import cv2
 import numpy as np
 import torch
 from PIL import Image
-from depth_anything_v2.dpt import DepthAnythingV2
 from depth_anything_v2.util import transform
 from pathlib import Path
 from sklearn.linear_model import RANSACRegressor
 
 #=============================================================================================================
 
-def loadTorchModel(modelPath, encoder):
+def loadTorchModel(modelPath, encoder, max_depth=None):
+    
     DEVICE = 'cuda' if torch.cuda.is_available() else 'mps' if torch.backends.mps.is_available() else 'cpu'
     model_configs = {
         'vits': {'encoder': 'vits', 'features': 64, 'out_channels': [48, 96, 192, 384]},
@@ -17,7 +17,14 @@ def loadTorchModel(modelPath, encoder):
         'vitl': {'encoder': 'vitl', 'features': 256, 'out_channels': [256, 512, 1024, 1024]},
         'vitg': {'encoder': 'vitg', 'features': 384, 'out_channels': [1536, 1536, 1536, 1536]}
     }    
-    depth_anything = DepthAnythingV2(**model_configs[encoder])
+
+    if max_depth is None:
+        from depth_anything_v2.dpt import DepthAnythingV2                # relative depth head
+        depth_anything = DepthAnythingV2(**model_configs[encoder])
+    else:
+        from metric_depth.depth_anything_v2.dpt import DepthAnythingV2   # metric depth head
+        depth_anything = DepthAnythingV2(**{**model_configs[encoder], 'max_depth': max_depth})
+    
     depth_anything.load_state_dict(torch.load(modelPath, map_location='cpu'))
     depth_anything = depth_anything.to(DEVICE).eval()
     return depth_anything    
