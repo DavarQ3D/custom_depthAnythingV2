@@ -17,7 +17,7 @@ class Dataset(Enum):
 
 if __name__ == '__main__':
 
-    dtSet = Dataset.IPHONE
+    dtSet = Dataset.KITTI
     outdir = "./data/outputs"
     os.makedirs(outdir, exist_ok=True)
 
@@ -45,7 +45,6 @@ if __name__ == '__main__':
     makeSquareInput = True
     borderType = cv2.BORDER_CONSTANT
     
-    normalizeVisualError = False
     showVisuals = True
 
     metricDepth = False
@@ -199,7 +198,7 @@ if __name__ == '__main__':
         print("Scale:", fp(scale), ", Shift:", fp(shift), '\n')
 
         vertConcat = True if dtSet == Dataset.KITTI else False
-        visualRes, rmse = analyzeAndPrepVis(cropped, mask, gt, pred, mode="color", normalizeError=normalizeVisualError, vertConcat=vertConcat)
+        visualRes, rmse = analyzeAndPrepVis(cropped, mask, gt, pred, vertConcat=vertConcat)
 
         if rmse < minRMSE:
             minRMSE = rmse

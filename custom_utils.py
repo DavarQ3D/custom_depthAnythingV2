@@ -54,9 +54,7 @@ def normalize(image):
 def denormalize(image):
     return (image * 255).astype(np.uint8)
 
-def analyzeAndPrepVis(rgb, mask, ref, pred, mode = "color", normalizeError=True, vertConcat=False):
-
-    assert mode in ("color", "grayscale")
+def analyzeAndPrepVis(rgb, mask, ref, pred, vertConcat=False):
     
     err = np.abs(ref - pred)
     valid = err[mask]
@@ -65,15 +63,13 @@ def analyzeAndPrepVis(rgb, mask, ref, pred, mode = "color", normalizeError=True,
 
     ref = normalize(ref)
     pred = normalize(pred)
-    err = normalize(err) if normalizeError else np.clip(err, 0, 1)
+
+    err = np.clip(err, 0, valid.max())
+    err = normalize(err) 
 
     ref = denormalize(ref)
     pred = denormalize(pred)    
     err = denormalize(err)
-
-    if mode == "grayscale":
-        gray = cv2.cvtColor(rgb, cv2.COLOR_BGR2GRAY)
-        return cv2.hconcat([gray, ref, pred, err])
 
     mask = mask.astype(np.uint8) * 255
     mask = cv2.cvtColor(mask, cv2.COLOR_GRAY2BGR)
@@ -81,6 +77,7 @@ def analyzeAndPrepVis(rgb, mask, ref, pred, mode = "color", normalizeError=True,
     pred = cv2.cvtColor(pred, cv2.COLOR_GRAY2BGR)
     err = cv2.cvtColor(err, cv2.COLOR_GRAY2BGR)
     err = cv2.applyColorMap(err, cv2.COLORMAP_JET)
+    err[mask == 0] = 0                 
 
     visualRes = cv2.vconcat([rgb, mask, ref, pred, err]) if vertConcat else cv2.hconcat([rgb, mask, ref, pred, err])
 
