@@ -45,7 +45,7 @@ if __name__ == '__main__':
     makeSquareInput = True
     borderType = cv2.BORDER_CONSTANT
     
-    normalizeVisualError = True
+    normalizeVisualError = False
     showVisuals = True
 
     metricDepth = False
